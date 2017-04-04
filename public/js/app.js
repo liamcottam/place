@@ -245,7 +245,7 @@ window.App = {
       this.connectionLost = true;
       ws.close();
       this.alert('Disconnected from server... Attempting to reconnect');
-      this.initSocket();
+      setTimeout(this.initSocket.bind(this), 1000);
     }.bind(this);
   },
   initUsers: function () {
