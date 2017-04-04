@@ -12,6 +12,8 @@ var boardData = new Uint32Array(config.width * config.height);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
+var voteYes = 0;
+var voteNo = 0;
 
 function formatIP(ip) {
   ip = ip.split(',')[0];
@@ -102,26 +104,43 @@ function onReady() {
     ws.on('close', function () {
       connectedClients--;
     });
-    
+
     ws.on('message', function (data) {
       var data = JSON.parse(data);
-      var x = data.x;
-      var y = data.y;
-      var color = data.color;
+      if (data.type === "place") {
+        var x = data.x;
+        var y = data.y;
+        var color = data.color;
 
-      if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) return;
-      var now = Date.now();
+        if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) return;
+        var now = Date.now();
 
-      if (typeof clients[ip].cooldown === 'undefined' || clients[ip].cooldown - now <= 0) {
-        clients[ip].cooldown = now + (1000 * config.cooldown);
-        var diff = config.cooldown;
+        if (typeof clients[ip].cooldown === 'undefined' || clients[ip].cooldown - now <= 0) {
+          clients[ip].cooldown = now + (1000 * config.cooldown);
+          var diff = config.cooldown;
 
-        var position = y * config.height + x;
-        boardData[position] = color;
-        needWrite = true;
-        data.type = 'pixel';
-        wss.broadcast(JSON.stringify(data));
-        ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
+          var position = y * config.height + x;
+          boardData[position] = color;
+          needWrite = true;
+          data.type = 'pixel';
+          wss.broadcast(JSON.stringify(data));
+          ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
+        }
+      } else if (data.type === "vote") {
+        if (typeof clients[ip].voted === "undefined") {
+          clients[ip].voted = true;
+          if (data.vote) voteYes++;
+          else voteNo++;
+
+          var data = {
+            type: 'vote',
+            no: voteNo,
+            yes: voteYes
+          };
+
+          console.log(data);
+          wss.broadcast(JSON.stringify(data));
+        }
       }
     });
   });

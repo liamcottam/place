@@ -11,10 +11,19 @@ block content
 
   div(class='ui', id='ui')
     div(class='cooldown-timer')
+    div(class='vote-message')
+      span(class='text')
+      span(class='close') x
     div(class='message')
       span(class='text')
       span(class='close') x
     div(class='palette')
+    div(class='vote-container')
+      div(class='vote')
+        a(href='javascript:void(0)', class='vote-yes') Yes (0)
+      div(class='vote')
+        a(href='javascript:void(0)', class='vote-no') No (0)
+
     div(class='coords') (0, 0)
     div(class='online') Loading...
 
