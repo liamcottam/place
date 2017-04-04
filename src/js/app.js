@@ -31,6 +31,9 @@ window.App = {
     alert: $(".message"),
     coords: $(".coords"),
     users: $(".online"),
+    chatToggle: $(".chat-tab"),
+    chatContainer: $(".chat"),
+    chatInput: $('.chat-input'),
   },
   panX: 0,
   panY: 0,
@@ -219,6 +222,7 @@ window.App = {
       $(".board-container").show();
       $(".ui").show();
       $(".loading").fadeOut(500);
+      this.initChat();
       this.initUsers();
       this.elements.alert.fadeOut(200);
       if (this.connectionLost) {
@@ -238,6 +242,10 @@ window.App = {
       } else if (data.type === "cooldown") {
         this.cooldown = Math.ceil(data.wait) + 1;
         this.updateTime();
+      } else if (data.type === 'chat') {
+        var d = $('.chat-log');
+        $('<span>').text(data.message).appendTo(d);
+        d.scrollTop(d.prop('scrollHeight'));
       }
     }.bind(this);
 
@@ -259,6 +267,34 @@ window.App = {
 
     clearTimeout(update);
     update();
+  },
+  initChat: function () {
+    this.elements.chatToggle.click(function () {
+      this.elements.chatContainer.toggle();
+
+      if (this.elements.chatContainer.is(':visible')) {
+        this.elements.users.addClass('online-chat');
+        this.elements.palette.addClass('palette-chat');
+      } else {
+        this.elements.users.removeClass('online-chat');
+        this.elements.palette.removeClass('palette-chat');
+      }
+    }.bind(this));
+
+    this.elements.chatInput.keypress(function (e) {
+      if (e.which == 13) {
+        var data = this.elements.chatInput.val();
+
+        this.socket.send(JSON.stringify({
+          type: 'chat',
+          message: data
+        }));
+
+        //$('<span>').text(data).appendTo($('.chat-log'));
+        this.elements.chatInput.val('');
+        e.preventDefault();
+      }
+    }.bind(this));
   },
   updateTransform: function () {
     this.elements.boardMover

@@ -143,6 +143,8 @@ function onReady() {
           wss.broadcast(JSON.stringify(data));
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         }
+      } else if (data.type === 'chat') {
+        wss.broadcast(JSON.stringify(data));
       }
     });
   });

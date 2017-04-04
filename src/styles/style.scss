@@ -1,4 +1,5 @@
 $uiMargin: 32px;
+$chatWidth: 250px;
 
 body {
     margin: 0;
@@ -180,4 +181,49 @@ body {
 
 .bubble a:visited,a:link,a:active,a:hover {
     color: #fff;
+}
+
+.chat-tab {
+    position: fixed;
+    top: 0;
+    right:0;
+    z-index: 999;
+}
+
+.chat {
+    display:none;
+    position: fixed;
+    right: 0;
+    width: $chatWidth;
+    height:100%;
+    background-color: lightgrey;
+    border-left: 2px solid black;
+}
+
+.chat-input {
+    position: fixed;
+    bottom:0;
+    width:243px;
+    height:50px;
+}
+
+.chat-log {
+    position: absolute;
+    width: 100%;
+    bottom: 56px;
+    overflow: hidden;
+    overflow-y: auto;
+}
+
+.chat-log span {
+    display: block;
+    word-break: break-word;
+}
+
+.palette-chat {
+    transform: translateX(-$chatWidth / 2);
+}
+
+.online-chat {
+    right: 32  + $chatWidth;
 }
