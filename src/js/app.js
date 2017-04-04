@@ -144,7 +144,7 @@ window.App = {
         this.scale *= 2;
       }
 
-      this.scale = Math.min(40, Math.max(2, this.scale));
+      this.scale = Math.min(40, Math.max(0.7, this.scale));
 
       var dx = evt.clientX - this.elements.boardContainer.width() / 2;
       var dy = evt.clientY - this.elements.boardContainer.height() / 2;
