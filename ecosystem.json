@@ -1,0 +1,18 @@
+{
+  "apps": [
+    {
+      "name": "place-thing",
+      "script": "app.js",
+      "watch": true,
+      "merge_logs": true,
+      "ignore_watch": [
+        "node_modules",
+        "board.dat",
+        "board.tmp.dat"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}
