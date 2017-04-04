@@ -330,9 +330,9 @@ window.App = {
     }
 
     if (this.cooldown === 0 && last !== 0) {
-      new Notification("Place Thing", {
+      /*new Notification("Place Thing", {
         body: "Your next pixel is available!"
-      });
+      });*/
     }
   }
 };
