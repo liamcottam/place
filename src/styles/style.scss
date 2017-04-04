@@ -1,3 +1,5 @@
+$uiMargin: 32px;
+
 body {
     margin: 0;
     width: 100vw;
@@ -140,8 +142,8 @@ body {
 
 .coords {
     position: fixed;
-    bottom: 32px;
-    left: 32px;
+    bottom: $uiMargin;
+    left: $uiMargin;
 
     padding: 8px;
     background-color: rgba(0, 0, 0, 0.5);
@@ -151,11 +153,31 @@ body {
 
 .online {
     position: fixed;
-    bottom: 32px;
-    right: 32px;
+    bottom: $uiMargin;
+    right: $uiMargin;
 
     padding: 8px;
     background-color: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
+    color: #fff;
+}
+
+.bubble-container {
+    position: fixed;
+    top: $uiMargin;
+    left: $uiMargin;
+}
+
+.bubble {
+    margin: 8px;
+    width: 128px;
+    padding: 8px 16px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    color: #fff;
+    text-align: center;
+}
+
+.bubble a:visited,a:link,a:active,a:hover {
     color: #fff;
 }
