@@ -1,0 +1,7 @@
+extends layout
+
+block content
+  h1 Admin Area
+  form(method='POST', action='/admin/announce')
+    input(type='text', name='message', placeholder='Announce')
+    input(type='submit')

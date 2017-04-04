@@ -12,8 +12,6 @@ var boardData = new Uint32Array(config.width * config.height);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
-var voteYes = 0;
-var voteNo = 0;
 
 function formatIP(ip) {
   ip = ip.split(',')[0];
@@ -78,6 +76,25 @@ function onReady() {
   });
   app.use('/', index);
 
+  var auth = require('http-auth');
+  var basic = auth.basic({
+    realm: "KillTheIdols",
+    file: __dirname + "/.htpasswd"
+  });
+
+  app.get('/admin', auth.connect(basic), (req, res) => {
+    res.render('admin', { title: 'Pxls' });
+  });
+
+  app.post('/admin/announce', auth.connect(basic), (req, res) => {
+    var obj = {
+      type: 'alert',
+      message: req.body.message,
+    };
+    req.wss.broadcast(JSON.stringify(obj));
+    res.sendStatus(200);
+  });
+
   app.use(function (req, res, next) {
     var err = new Error('Not Found');
     err.status = 404;
@@ -126,21 +143,6 @@ function onReady() {
           wss.broadcast(JSON.stringify(data));
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         }
-      } else if (data.type === "vote") {
-        if (typeof clients[ip].voted === "undefined") {
-          clients[ip].voted = true;
-          if (data.vote) voteYes++;
-          else voteNo++;
-
-          var data = {
-            type: 'vote',
-            no: voteNo,
-            yes: voteYes
-          };
-
-          console.log(data);
-          wss.broadcast(JSON.stringify(data));
-        }
       }
     });
   });
@@ -173,15 +175,41 @@ function synchroniseFile() {
   }
 }
 
-fs.readFile(config.boardFilename, 'binary', function (err, data) {
-  if (err) {
-    throw err;
+if (!fs.existsSync('.htpasswd')) {
+  fs.writeFile('.htpasswd', 'user:user', function (err) {
+    if (err) throw err;
+
+    console.log('Created default user with username and password user');
+  })
+}
+
+if (fs.existsSync(config.boardFilename)) {
+  fs.readFile(config.boardFilename, 'binary', function (err, data) {
+    if (err) {
+      throw err;
+    }
+
+    for (var i = 0, j = config.width * config.height; i < j; i++) {
+      boardData[i] = data.charCodeAt(i);
+    }
+
+    synchroniseFile();
+    onReady();
+  });
+} else {
+  var numElements = config.width * config.height;
+  var array = new Uint32Array(numElements);
+  for (var i = 0; i < numElements; i++) {
+    array[i] = config.clearColor;
   }
 
-  for (var i = 0, j = config.width * config.height; i < j; i++) {
-    boardData[i] = data.charCodeAt(i);
-  }
+  fs.writeFile(config.boardFilename, new Buffer(array), function (err) {
+    if (err) {
+      console.error('Failed to create data file');
+      throw err;
+    }
 
-  synchroniseFile();
-  onReady();
-});
+    onReady();
+    synchroniseFile();
+  });
+}

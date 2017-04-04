@@ -29,10 +29,8 @@ window.App = {
     timer: $(".cooldown-timer"),
     reticule: $(".reticule"),
     alert: $(".message"),
-    voteAlert: $(".vote-message"),
     coords: $(".coords"),
     users: $(".online"),
-    voteContainer: $(".vote-container"),
   },
   panX: 0,
   panY: 0,
@@ -45,12 +43,10 @@ window.App = {
     $(".board-container").hide();
     $(".reticule").hide();
     $(".ui").hide();
-    $(".message").hide();
+    $('.message').hide();
     $(".cursor").hide();
     $(".cooldown-timer").hide();
     $(".online").hide();
-    $(".vote-container").hide();
-    $('.vote-message').hide();
 
     $.get("/boardinfo", this.initBoard.bind(this));
 
@@ -211,10 +207,6 @@ window.App = {
     this.elements.alert.find(".close").click(function () {
       this.elements.alert.fadeOut(200);
     }.bind(this));
-
-    this.elements.voteAlert.find(".close").click(function () {
-      this.elements.voteAlert.fadeOut(200);
-    }.bind(this));
   },
   initSocket: function () {
     var l = window.location;
@@ -246,10 +238,6 @@ window.App = {
       } else if (data.type === "cooldown") {
         this.cooldown = Math.ceil(data.wait) + 1;
         this.updateTime();
-      } else if (data.type === "vote-init") {
-        this.startVote(data.message);
-      } else if (data.type === "vote") {
-        this.vote(data);
       }
     }.bind(this);
 
@@ -257,8 +245,6 @@ window.App = {
       this.connectionLost = true;
       ws.close();
       this.alert('Disconnected from server... Attempting to reconnect');
-      this.elements.voteAlert.fadeOut(200);
-      this.elements.voteContainer.fadeOut(200);
       setTimeout(this.initSocket.bind(this), 1000);
     }.bind(this);
   },
@@ -348,32 +334,6 @@ window.App = {
         body: "Your next pixel is available!"
       });
     }
-  },
-  startVote: function (message) {
-    var voteAlert = this.elements.voteAlert;
-    var voteContainer = this.elements.voteContainer;
-    voteAlert.find(".text").text(message);
-    voteContainer.fadeIn(200);
-    voteAlert.fadeIn(200);
-
-    $('.vote-no').click(function () {
-      this.socket.send(JSON.stringify({
-        type: 'vote',
-        vote: false
-      }));
-    }.bind(this));
-
-    $('.vote-yes').click(function () {
-      this.socket.send(JSON.stringify({
-        type: 'vote',
-        vote: true
-      }));
-    }.bind(this));
-  },
-  vote: function (voteData) {
-
-    $('.vote-no').text('No (' + voteData.no + ')');
-    $('.vote-yes').text('Yes (' + voteData.yes + ')');
   }
 };
 
