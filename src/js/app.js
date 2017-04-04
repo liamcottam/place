@@ -142,9 +142,9 @@ window.App = {
       var oldScale = this.scale;
 
       if (evt.originalEvent.deltaY > 0) {
-        this.scale /= 2
+        this.scale /= 1.3
       } else {
-        this.scale *= 2;
+        this.scale *= 1.3;
       }
 
       this.scale = Math.min(40, Math.max(0.7, this.scale));
