@@ -12,6 +12,22 @@ var boardData = new Uint32Array(config.width * config.height);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
+var restrictedRegions = [
+  {
+    start: { x: 305, y: 970 },
+    end: { x: 345, y: 997 }
+  }
+];
+
+function checkRestricted(x, y) {
+  for (var i = 0; i < restrictedRegions.length; i++) {
+    if (x >= restrictedRegions[i].start.x && x <= restrictedRegions[i].end.x && y >= restrictedRegions[i].start.y && y <= restrictedRegions[i].end.y) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function formatIP(ip) {
   ip = ip.split(',')[0];
@@ -130,8 +146,13 @@ function onReady() {
         var color = data.color;
 
         if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) return;
-        var now = Date.now();
 
+        if (checkRestricted(x, y)) {
+          ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
+          return;
+        }
+
+        var now = Date.now();
         if (typeof clients[ip].cooldown === 'undefined' || clients[ip].cooldown - now <= 0) {
           clients[ip].cooldown = now + (1000 * config.cooldown);
           var diff = config.cooldown;
