@@ -56,7 +56,7 @@ window.App = {
     this.initReticule();
     this.initAlert();
     this.initCoords();
-    Notification.requestPermission();
+    //Notification.requestPermission();
   },
   initBoard: function (data) {
     this.width = data.width;
@@ -301,7 +301,7 @@ window.App = {
       y: y,
       color: this.color
     }));
-    this.switchColor(-1);
+    //this.switchColor(-1);
   },
   alert: function (message) {
     var alert = this.elements.alert;
