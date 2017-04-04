@@ -16,7 +16,15 @@ var restrictedRegions = [
   {
     start: { x: 305, y: 970 },
     end: { x: 345, y: 997 }
-  }
+  },
+  {
+    start: { x: 356, y: 930 },
+    end: { x: 385, y: 969 }
+  },
+  {
+    start: { x: 394, y: 925 },
+    end: { x: 435, y: 972 }
+  },
 ];
 
 function checkRestricted(x, y) {
@@ -111,6 +119,38 @@ function onReady() {
     res.sendStatus(200);
   });
 
+  app.post('/admin/remove-square', auth.connect(basic), (req, res) => {
+    var data = req.body;
+
+    var obj = {
+      start: {
+        x: parseInt(data.startx),
+        y: parseInt(data.starty)
+      },
+      end: {
+        x: parseInt(data.endx),
+        y: parseInt(data.endy)
+      }
+    }
+
+    var position = 0;
+    for (var i = obj.start.y; i <= obj.end.y; i++) {
+      for (var j = obj.start.x; j <= obj.end.x; j++) {
+        position = (i * config.height) + j;
+        boardData[position] = config.clearColor;
+        var data = {
+          type: 'pixel',
+          x: j,
+          y: i,
+          color: config.clearColor,
+        };
+        wss.broadcast(JSON.stringify(data));
+      }
+    }
+
+    res.sendStatus(200);
+  });
+
   app.use(function (req, res, next) {
     var err = new Error('Not Found');
     err.status = 404;
@@ -141,6 +181,7 @@ function onReady() {
     ws.on('message', function (data) {
       var data = JSON.parse(data);
       if (data.type === "place") {
+        console.log('Place ' + ip);
         var x = data.x;
         var y = data.y;
         var color = data.color;

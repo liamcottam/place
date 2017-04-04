@@ -5,3 +5,11 @@ block content
   form(method='POST', action='/admin/announce')
     input(type='text', name='message', placeholder='Announce')
     input(type='submit')
+
+  h2 Remove Square
+  form(method='POST', action='/admin/remove-square')
+    input(type='text', name='startx', placeholder='startx')
+    input(type='text', name='starty', placeholder='starty')
+    input(type='text', name='endx', placeholder='endx')
+    input(type='text', name='endy', placeholder='endy')
+    input(type='submit')

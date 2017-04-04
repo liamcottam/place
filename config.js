@@ -1,6 +1,6 @@
 module.exports = {
   port: 3000,
-  cooldown: 180, // in seconds
+  cooldown: 1, // in seconds
   width: 1000,
   height: 1000,
   boardFilename: 'board.dat',
