@@ -16,5 +16,14 @@
     "pug": "^2.0.0-beta11",
     "websocket": "^1.0.24",
     "ws": "^2.2.3"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-concat": "^2.6.1",
+    "gulp-csso": "^3.0.0",
+    "gulp-plumber": "^1.1.0",
+    "gulp-sass": "^3.1.0",
+    "gulp-uglify": "^2.1.2",
+    "gulp-uglifycss": "^1.0.8"
   }
 }
