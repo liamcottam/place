@@ -38,6 +38,7 @@ window.App = {
   cooldown: 0,
   init: function () {
     this.color = -1;
+    this.connectionLost = false;
 
     $(".board-container").hide();
     $(".reticule").hide();
@@ -219,6 +220,10 @@ window.App = {
       $(".ui").show();
       $(".loading").fadeOut(500);
       this.initUsers();
+      this.elements.alert.fadeOut(200);
+      if (this.connectionLost) {
+        jQuery.get("/boarddata", this.drawBoard.bind(this));
+      }
     }.bind(this);
 
     ws.onmessage = function (msg) {
@@ -235,6 +240,13 @@ window.App = {
         this.updateTime();
       }
     }.bind(this);
+
+    ws.onclose = function () {
+      this.connectionLost = true;
+      ws.close();
+      this.alert('Disconnected from server... Attempting to reconnect');
+      this.initSocket();
+    }.bind(this);
   },
   initUsers: function () {
     var update = function () {
@@ -244,6 +256,8 @@ window.App = {
         setTimeout(update.bind(this), 15000);
       }.bind(this));
     }.bind(this);
+
+    clearTimeout(update);
     update();
   },
   updateTransform: function () {

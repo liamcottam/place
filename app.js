@@ -91,6 +91,7 @@ function onReady() {
     var ip = formatIP(ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress);
     if (typeof clients[ip] === 'undefined') {
       clients[ip] = { cooldown: 0 };
+      ws.send(JSON.stringify({ type: 'cooldown', wait: 0 }));
     } else {
       var now = Date.now();
       var diff = (clients[ip].cooldown - now) / 1000;
@@ -101,7 +102,7 @@ function onReady() {
     ws.on('close', function () {
       connectedClients--;
     });
-
+    
     ws.on('message', function (data) {
       var data = JSON.parse(data);
       var x = data.x;
