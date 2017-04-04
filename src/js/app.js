@@ -337,7 +337,7 @@ window.App = {
       y: y,
       color: this.color
     }));
-    //this.switchColor(-1);
+    this.switchColor(-1);
   },
   alert: function (message) {
     var alert = this.elements.alert;
