@@ -13,3 +13,5 @@ Installation instructions:
 ```node create-datafile.js```
 ## 4 - Run it
 ```node app.js```
+
+By default it will run on port 3000, but this can be changed in the file ```config.js```.

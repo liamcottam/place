@@ -126,8 +126,8 @@ function onReady() {
     });
   });
 
-  server.listen(3000, function () {
-    console.log('Listening on %d', server.address().port);
+  server.listen(config.port, function () {
+    console.log('Listening on port %d', server.address().port);
   });
 }
 
