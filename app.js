@@ -13,17 +13,45 @@ var needWrite = false;
 var connectedClients = 0;
 var clients = [];
 var restrictedRegions = [
-  {
+  { // UK Flag
     start: { x: 305, y: 970 },
     end: { x: 345, y: 997 }
   },
-  {
+  { // Hitler
     start: { x: 356, y: 930 },
     end: { x: 385, y: 969 }
   },
-  {
+  { // Egg
     start: { x: 394, y: 925 },
     end: { x: 435, y: 972 }
+  },
+  { // Czech Flag
+    start: { x: 318, y: 407 },
+    end: { x: 400, y: 459 }
+  },
+  { // Czech Flag
+    start: { x: 318, y: 407 },
+    end: { x: 400, y: 459 }
+  },
+  { // Pikachu
+    start: { x: 942, y: 688 },
+    end: { x: 983, y: 729 }
+  },
+  { // Sad man
+    start: { x: 639, y: 88 },
+    end: { x: 671, y: 126 }
+  },
+  { // Mr.T
+    start: { x: 573, y: 114 },
+    end: { x: 600, y: 153 }
+  },
+  { // Squidward
+    start: { x: 601, y: 130 },
+    end: { x: 687, y: 248 }
+  },
+  { // Charmander and misc
+    start: { x: 595, y: 402 },
+    end: { x: 633, y: 466 }
   },
 ];
 
@@ -58,7 +86,7 @@ function onReady() {
 
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'pug');
-  app.use(logger('dev'));
+  //app.use(logger('dev'));
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(cookieParser());
@@ -206,6 +234,29 @@ function onReady() {
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         }
       } else if (data.type === 'chat') {
+        if (typeof clients[ip].chat_id === 'undefined') {
+          clients[ip].chat_id = Math.random().toString(36).substr(2, 5);
+        }
+
+        if (data.message === '') {
+          return;
+        }
+
+        var now = Date.now();
+        if (typeof clients[ip].chat_limit !== 'undefined') {
+          var delta = now - clients[ip].chat_limit;
+          if (delta < 0) {
+            console.log("CHAT-LIMIT: " + ip + ' - ' + data.message);
+            clients[ip].chat_limit = now + config.cooldown_chat;
+            ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limited' }));
+            return;
+          }
+        }
+
+        clients[ip].chat_limit = now + config.cooldown_chat;
+        // Needs to go into a log file...
+        console.log("CHAT: " + ip + ' - ' + data.message);
+        data.chat_id = clients[ip].chat_id;
         wss.broadcast(JSON.stringify(data));
       }
     });

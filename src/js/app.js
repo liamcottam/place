@@ -244,7 +244,9 @@ window.App = {
         this.updateTime();
       } else if (data.type === 'chat') {
         var d = $('.chat-log');
-        $('<span>').text(data.message).appendTo(d);
+        var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
+        $('<span>', { "class": 'chat-id' }).text(data.chat_id + ': ').appendTo(div);
+        $('<span>', { "class": 'chat-message' }).text(data.message).appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
       }
     }.bind(this);
@@ -284,13 +286,14 @@ window.App = {
     this.elements.chatInput.keypress(function (e) {
       if (e.which == 13) {
         var data = this.elements.chatInput.val();
+        if (data === '')
+          return;
 
         this.socket.send(JSON.stringify({
           type: 'chat',
           message: data
         }));
 
-        //$('<span>').text(data).appendTo($('.chat-log'));
         this.elements.chatInput.val('');
         e.preventDefault();
       }

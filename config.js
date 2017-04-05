@@ -1,6 +1,7 @@
 module.exports = {
   port: 3000,
   cooldown: 1, // in seconds
+  cooldown_chat: 500,// in ms
   width: 1000,
   height: 1000,
   boardFilename: 'board.dat',

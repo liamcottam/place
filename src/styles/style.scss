@@ -1,5 +1,5 @@
 $uiMargin: 32px;
-$chatWidth: 250px;
+$chatWidth: 300px;
 
 body {
     margin: 0;
@@ -97,7 +97,7 @@ body {
 
 .cooldown-timer {
     position: fixed;
-    top: 48px;
+    top: 40px;
     left: 50%;
     transform: translateX(-50%);
 
@@ -197,15 +197,19 @@ body {
     right: 0;
     width: $chatWidth;
     height:100%;
-    background-color: lightgrey;
-    border-left: 2px solid black;
+    background-color: #efeef1;
+    border-left: 1px solid #dad8de;
 }
 
 .chat-input {
     position: fixed;
     bottom:0;
-    width:243px;
-    height:50px;
+    width: $chatWidth - 6;
+    height: 50px;
+    resize: none;
+    padding: 3px;
+    border: none;
+    border-top: 1px solid #dad8de;
 }
 
 .chat-log {
@@ -216,17 +220,21 @@ body {
     overflow-y: auto;
 }
 
-.chat-log span {
-    display: block;
+.chat-log .chat-line {
+    font-size: 13px;
+    margin: 3px;
+}
+
+.chat-log .chat-message {
     word-break: break-word;
 }
 
 .palette-chat {
-    transform: translateX(-$chatWidth / 2);
+    width: calc(100% - 300px);
 }
 
 .online-chat {
-    right: 32  + $chatWidth;
+    right: $chatWidth + $uiMargin;
 }
 
 input {
