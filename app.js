@@ -8,10 +8,13 @@ var http = require('http');
 var config = require('./config');
 var WebSocket = require('ws');
 
-var boardData = new Uint32Array(config.width * config.height);
+var numElements = config.width * config.height;
+var boardData = new Uint32Array(numElements);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
+
+// TODO: Move to DB/File or something
 var restrictedRegions = [
   { // UK Flag
     start: { x: 305, y: 970 },
@@ -166,16 +169,12 @@ function onReady() {
       for (var j = obj.start.x; j <= obj.end.x; j++) {
         position = (i * config.height) + j;
         boardData[position] = config.clearColor;
-        var data = {
-          type: 'pixel',
-          x: j,
-          y: i,
-          color: config.clearColor,
-        };
-        wss.broadcast(JSON.stringify(data));
       }
     }
-
+    
+    needWrite = true;
+    var data = { type: 'force-sync' };
+    wss.broadcast(JSON.stringify(data));
     res.sendStatus(200);
   });
 
@@ -209,12 +208,16 @@ function onReady() {
     ws.on('message', function (data) {
       var data = JSON.parse(data);
       if (data.type === "place") {
-        console.log('Place ' + ip);
+
         var x = data.x;
         var y = data.y;
+        console.log('PLACE ' + ip + ' (' + x + ',' + y + ')');
         var color = data.color;
 
-        if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) return;
+        if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) {
+          console.log('PLACE: OOB');
+          return;
+        }
 
         if (checkRestricted(x, y)) {
           ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
@@ -223,10 +226,13 @@ function onReady() {
 
         var now = Date.now();
         if (typeof clients[ip].cooldown === 'undefined' || clients[ip].cooldown - now <= 0) {
-          clients[ip].cooldown = now + (1000 * config.cooldown);
-          var diff = config.cooldown;
+          var diff = 0;
+          if (ip != '1') {
+            clients[ip].cooldown = now + (1000 * config.cooldown);
+            diff = config.cooldown;
+          }
 
-          var position = y * config.height + x;
+          var position = (y * config.height) + x;
           boardData[position] = color;
           needWrite = true;
           data.type = 'pixel';
@@ -238,10 +244,7 @@ function onReady() {
           clients[ip].chat_id = Math.random().toString(36).substr(2, 5);
         }
 
-        if (data.message === '') {
-          return;
-        }
-
+        if (data.message === '') return;
         var now = Date.now();
         if (typeof clients[ip].chat_limit !== 'undefined') {
           var delta = now - clients[ip].chat_limit;
@@ -254,7 +257,6 @@ function onReady() {
         }
 
         clients[ip].chat_limit = now + config.cooldown_chat;
-        // Needs to go into a log file...
         console.log("CHAT: " + ip + ' - ' + data.message);
         data.chat_id = clients[ip].chat_id;
         wss.broadcast(JSON.stringify(data));
@@ -304,7 +306,7 @@ if (fs.existsSync(config.boardFilename)) {
       throw err;
     }
 
-    for (var i = 0, j = config.width * config.height; i < j; i++) {
+    for (var i = 0, j = numElements; i < j; i++) {
       boardData[i] = data.charCodeAt(i);
     }
 
@@ -312,7 +314,6 @@ if (fs.existsSync(config.boardFilename)) {
     onReady();
   });
 } else {
-  var numElements = config.width * config.height;
   var array = new Uint32Array(numElements);
   for (var i = 0; i < numElements; i++) {
     array[i] = config.clearColor;

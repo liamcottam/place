@@ -86,19 +86,20 @@ window.App = {
   drawBoard: function (data) {
     var ctx = this.elements.board[0].getContext("2d");
 
-    var id = new ImageData(this.width, this.height);
-    var intView = new Uint32Array(id.data.buffer);
+    var imageData = new ImageData(this.width, this.height);
+    var buffer = new Uint32Array(imageData.data.buffer);
+    var imageDataLen = this.width * this.height;
 
     var rgbPalette = this.palette.map(function (c) {
       var rgb = hexToRgb(c);
       return 0xff000000 | rgb.b << 16 | rgb.g << 8 | rgb.r;
     });
 
-    for (var i = 0; i < this.width * this.height; i++) {
-      intView[i] = rgbPalette[data.charCodeAt(i)];
+    for (var i = 0; i < imageDataLen; i++) {
+      buffer[i] = rgbPalette[data.charCodeAt(i)];
     }
 
-    ctx.putImageData(id, 0, 0);
+    ctx.putImageData(imageData, 0, 0);
   },
   initPalette: function () {
     this.palette.forEach(function (color, idx) {
@@ -211,6 +212,9 @@ window.App = {
       this.elements.alert.fadeOut(200);
     }.bind(this));
   },
+  forceSync: function () {
+    jQuery.get("/boarddata", this.drawBoard.bind(this));
+  },
   initSocket: function () {
     var l = window.location;
     var url = ((l.protocol === "https:") ? "wss://" : "ws://") + l.host + l.pathname + "ws";
@@ -248,6 +252,8 @@ window.App = {
         $('<span>', { "class": 'chat-id' }).text(data.chat_id + ': ').appendTo(div);
         $('<span>', { "class": 'chat-message' }).text(data.message).appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
+      } else if (data.type === 'force-sync') {
+        this.forceSync();
       }
     }.bind(this);
 
