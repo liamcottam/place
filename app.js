@@ -173,6 +173,9 @@ function authenticateUser(username, password, session_id) {
       }
 
       var data = saltHash(password);
+      clients[session_id].username = username;
+      var session_key = generateSalt();
+
       user_db.insert({
         username: username,
         hash: data.hash,
@@ -183,7 +186,10 @@ function authenticateUser(username, password, session_id) {
         type: 'authenticate',
         success: true,
         message: 'Created new account with password provided',
+        session_key, session_key,
       }));
+
+      session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
     }
   });
 }
