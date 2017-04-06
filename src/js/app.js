@@ -42,6 +42,9 @@ window.App = {
   init: function () {
     this.color = -1;
     this.connectionLost = false;
+    this.username = null;
+    this.session_id = null;
+    this.session_key = null;
 
     $(".board-container").hide();
     $(".reticule").hide();
@@ -231,13 +234,21 @@ window.App = {
       this.elements.alert.fadeOut(200);
       if (this.connectionLost) {
         jQuery.get("/boarddata", this.drawBoard.bind(this));
+        if (this.session_key != null) {
+          ws.send(JSON.stringify({
+            type: 'reauth',
+            username: this.username,
+            session_key: this.session_key
+          }));
+        }
       }
     }.bind(this);
 
     ws.onmessage = function (msg) {
       var data = JSON.parse(msg.data);
-
-      if (data.type === "pixel") {
+      if (data.type === 'session') {
+        this.session_id = data.session_id;
+      } else if (data.type === "pixel") {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
         ctx.fillRect(data.x, data.y, 1, 1);
@@ -255,9 +266,9 @@ window.App = {
       } else if (data.type === 'force-sync') {
         this.forceSync();
       } else if (data.type === 'authenticate') {
-        console.log(data);
         if (data.message) this.alert(data.message);
         if (data.success) {
+          this.session_key = data.session_key;
           $('.chat-options').hide();
           $('.chat-log').show();
           $('.chat-input').show();
@@ -287,15 +298,15 @@ window.App = {
     update();
   },
   authenticateChat: function () {
-    var username = $('#username').val();
+    this.username = $('#username').val();
     var password = $('#password').val();
-    var authRequest = {
-      type: 'auth',
-      username: username,
-      password: password
-    };
 
-    this.socket.send(JSON.stringify(authRequest));
+    this.socket.send(JSON.stringify({
+      type: 'auth',
+      session_id: this.session_id,
+      username: this.username,
+      password: password
+    }));
   },
   initChat: function () {
 
@@ -340,6 +351,7 @@ window.App = {
           return;
 
         this.socket.send(JSON.stringify({
+          session_id: this.session_id,
           type: 'chat',
           message: data
         }));
@@ -386,6 +398,7 @@ window.App = {
   place: function (x, y) {
     this.socket.send(JSON.stringify({
       type: 'place',
+      session_id: this.session_id,
       x: x,
       y: y,
       color: this.color

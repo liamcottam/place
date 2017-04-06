@@ -10,22 +10,18 @@ var WebSocket = require('ws');
 
 const crypto = require('crypto');
 var saltLength = 64;
-const low = require('lowdb');
-const fileAsync = require('lowdb/lib/storages/file-async')
 
 // TODO: Move to proper database, mongodb perhaps
-const db = low('db.json', {
-  store: fileAsync
-});
-db.defaults({
-  users: []
-}).write();
+const Datastore = require('nedb');
+const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
+const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 
 var numElements = config.width * config.height;
 var boardData = new Uint32Array(numElements);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
+var clientIPMap = [];
 
 // TODO: Move to DB/File or something
 var restrictedRegions = [
@@ -129,39 +125,95 @@ function checkPassword(password, hashedPassword, salt) {
   return false;
 }
 
-function authenticateUser(username, password, socket) {
+function authenticateUser(username, password, session_id) {
+  if (username.length === 0 || password.length === 0) {
+    clients[session_id].ws.send(JSON.stringify({
+      type: 'authenticate',
+      success: false,
+      message: 'Username/password required'
+    }));
+
+    return;
+  }
+
   // Check if user exists
-  var user = db.get('users').find({ username: username }).value();
-  if (user) {
-    if (checkPassword(password, user.hash, user.salt)) {
-      socket.authenticated = true;
-      socket.username = username;
-      socket.send(JSON.stringify({
-        type: 'authenticate',
-        success: true
-      }));
+  var user = user_db.findOne({ username: username }, function (err, user) {
+    if (err) throw err;
+    if (user) {
+
+      if (checkPassword(password, user.hash, user.salt)) {
+        clients[session_id].username = username;
+        clients[session_id].is_moderator = user.is_moderator;
+        var session_key = generateSalt();
+
+        clients[session_id].ws.send(JSON.stringify({
+          type: 'authenticate',
+          success: true,
+          session_key: session_key,
+        }));
+
+        session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
+      } else {
+        console.log('failed login attempt');
+        clients[session_id].ws.send(JSON.stringify({
+          type: 'authenticate',
+          success: false,
+          message: 'Username or password incorrect',
+        }));
+      }
     } else {
-      console.log('failed login attempt');
-      socket.send(JSON.stringify({
+      if (password.length < 6) {
+        clients[session_id].ws.send(JSON.stringify({
+          type: 'authenticate',
+          success: false,
+          message: 'Password must be at least 6 characters'
+        }));
+
+        return;
+      }
+
+      var data = saltHash(password);
+      user_db.insert({
+        username: username,
+        hash: data.hash,
+        salt: data.salt
+      });
+
+      clients[session_id].ws.send(JSON.stringify({
         type: 'authenticate',
-        success: false,
-        message: 'username or password incorrect',
+        success: true,
+        message: 'Created new account with password provided',
       }));
     }
-  } else {
-    // Create new user
-    var data = saltHash(password);
-    db.get('users').push({
-      username: username,
-      hash: data.hash,
-      salt: data.salt
-    }).write();
-    socket.send(JSON.stringify({
-      type: 'authenticate',
-      success: true,
-      message: 'Created new account with password provided',
-    }));
-  }
+  });
+}
+
+function authenticateSession(username, session_key, session_id) {
+  user_db.findOne({ username: username }, function (err, user) {
+    if (err) throw err;
+    if (!user) return;
+
+    session_db.findOne({ username: username, key: session_key }, function (err, session) {
+      if (err) throw err;
+
+      if (session && session.valid_until > Date.now()) {
+        clients[session_id].username = username;
+        clients[session_id].is_moderator = user.is_moderator;
+
+        clients[session_id].ws.send(JSON.stringify({
+          type: 'reauth',
+          success: true
+        }));
+      } else {
+        console.log('invalid session');
+        clients[session_id].ws.send(JSON.stringify({
+          type: 'reauth',
+          success: false,
+          message: 'Invalid session',
+        }));
+      }
+    });
+  });
 }
 
 function onReady() {
@@ -282,15 +334,18 @@ function onReady() {
     ws.authenticated = false;
     connectedClients++;
     var ip = formatIP(ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress);
-    if (typeof clients[ip] === 'undefined') {
-      clients[ip] = { cooldown: 0 };
-      ws.send(JSON.stringify({ type: 'cooldown', wait: 0 }));
+    var id = Math.random().toString(36).substr(2, 5);
+    var hasSession = false;
+
+    // Check for previous session by ip
+    if (typeof clientIPMap[ip] !== 'undefined') {
+      id = clientIPMap[ip];
     } else {
-      var now = Date.now();
-      var diff = (clients[ip].cooldown - now) / 1000;
-      if (diff >= 0)
-        ws.send(JSON.stringify({ type: 'cooldown', wait: Math.ceil(diff) }));
+      clientIPMap[ip] = id;
     }
+
+    clients[id] = { id: id, ip: ip, ws: ws };
+    ws.send(JSON.stringify({ session_id: id, type: 'session' }));
 
     ws.on('close', function () {
       connectedClients--;
@@ -298,8 +353,11 @@ function onReady() {
 
     ws.on('message', function (data) {
       var data = JSON.parse(data);
-      if (data.type === "place") {
+      if (typeof clients[id] === 'undefined') {
+        ws.send(JSON.stringify({ type: 'alert', message: 'Invalid session, please refresh' }));
+      }
 
+      if (data.type === "place") {
         var x = data.x;
         var y = data.y;
         console.log('PLACE ' + ip + ' (' + x + ',' + y + ')');
@@ -310,25 +368,21 @@ function onReady() {
           return;
         }
 
-        var unrestricted = false;
-        if (ip == '1' || ip == '184.39.158.191' || ip == '68.40.70.109') {
-          unrestricted = true;
-        }
-
-        if (!unrestricted && checkRestricted(x, y)) {
+        if (!clients[id].is_moderator === true && checkRestricted(x, y)) {
           ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
           return;
         }
 
         var now = Date.now();
-        if (typeof clients[ip].cooldown === 'undefined' || clients[ip].cooldown - now <= 0) {
+        if (typeof clients[id].cooldown === 'undefined' || clients[id].cooldown - now <= 0) {
           var diff = 0;
-          if (ip != '1') {
-            clients[ip].cooldown = now + (1000 * config.cooldown);
+          if (!clients[id].is_moderator) {
+            clients[id].cooldown = now + (1000 * config.cooldown);
             diff = config.cooldown;
           }
 
           var position = (y * config.height) + x;
+          data.prevColor = boardData[position];
           boardData[position] = color;
           needWrite = true;
           data.type = 'pixel';
@@ -336,32 +390,32 @@ function onReady() {
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         }
       } else if (data.type === 'chat') {
-        if (!ws.authenticated && typeof clients[ip].chat_id === 'undefined') {
-          clients[ip].chat_id = Math.random().toString(36).substr(2, 5);
-        }
 
         if (data.message === '') return;
         var now = Date.now();
-        if (typeof clients[ip].chat_limit !== 'undefined') {
-          var delta = now - clients[ip].chat_limit;
+        if (typeof clients[id].chat_limit !== 'undefined') {
+          var delta = now - clients[id].chat_limit;
           if (delta < 0) {
             console.log("CHAT-LIMIT: " + ip + ' - ' + data.message);
-            clients[ip].chat_limit = now + config.cooldown_chat;
-            ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limited' }));
+            clients[id].chat_limit = now + config.cooldown_chat;
+            ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limit exceeded' }));
             return;
           }
         }
 
-        clients[ip].chat_limit = now + config.cooldown_chat;
+        clients[id].chat_limit = now + config.cooldown_chat;
         console.log("CHAT: " + ip + ' - ' + data.message);
-        if (ws.authenticated) {
-          data.chat_id = ws.username;
+        if (typeof clients[id].username !== 'undefined') {
+          data.chat_id = clients[id].username;
         } else {
-          data.chat_id = clients[ip].chat_id;
+          data.chat_id = clients[id].id;
         }
+
         wss.broadcast(JSON.stringify(data));
       } else if (data.type === 'auth') {
-        authenticateUser(data.username, data.password, ws);
+        authenticateUser(data.username, data.password, id);
+      } else if (data.type === 'reauth') {
+        authenticateSession(data.username, data.session_key, id);
       }
     });
   });

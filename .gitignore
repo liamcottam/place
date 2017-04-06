@@ -1,4 +1,5 @@
 node_modules/
 board.dat
 .htpasswd
-db.json
+sessions.nedb
+users.nedb

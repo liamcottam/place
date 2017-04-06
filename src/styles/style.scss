@@ -221,7 +221,7 @@ body {
 .chat-input {
     display: none;
     position: fixed;
-    bottom:0;
+    bottom: 0;
     width: $chatWidth - 6;
     height: 50px;
     resize: none;
@@ -234,6 +234,7 @@ body {
     display: none;
     position: absolute;
     width: 100%;
+    top: 0;
     bottom: 56px;
     overflow: hidden;
     overflow-y: auto;
