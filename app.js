@@ -8,6 +8,19 @@ var http = require('http');
 var config = require('./config');
 var WebSocket = require('ws');
 
+const crypto = require('crypto');
+var saltLength = 64;
+const low = require('lowdb');
+const fileAsync = require('lowdb/lib/storages/file-async')
+
+// TODO: Move to proper database, mongodb perhaps
+const db = low('db.json', {
+  store: fileAsync
+});
+db.defaults({
+  users: []
+}).write();
+
 var numElements = config.width * config.height;
 var boardData = new Uint32Array(numElements);
 var needWrite = false;
@@ -56,6 +69,14 @@ var restrictedRegions = [
     start: { x: 595, y: 402 },
     end: { x: 633, y: 466 }
   },
+  {
+    start: { x: 470, y: 5 },
+    end: { x: 531, y: 64 }
+  },
+  {
+    start: { x: 561, y: 43 },
+    end: { x: 647, y: 126 }
+  },
 ];
 
 function checkRestricted(x, y) {
@@ -72,6 +93,75 @@ function formatIP(ip) {
   ip = ip.split(',')[0];
   ip = ip.split(':').slice(-1);
   return ip;
+}
+
+function generateSalt() {
+  return crypto.randomBytes(Math.ceil(saltLength / 2))
+    .toString('hex')
+    .slice(0, saltLength);
+}
+
+function hash(password, salt) {
+  var hash = crypto.createHmac('sha512', salt);
+  hash.update(password);
+  var value = hash.digest('hex');
+  return {
+    hash: value,
+    salt: salt,
+  };
+}
+
+function saltHash(password) {
+  var salt = generateSalt();
+  var passwordData = hash(password, salt);
+
+  return {
+    hash: passwordData.hash,
+    salt: passwordData.salt,
+  };
+}
+
+function checkPassword(password, hashedPassword, salt) {
+  if (hash(password, salt).hash === hashedPassword) {
+    return true;
+  }
+
+  return false;
+}
+
+function authenticateUser(username, password, socket) {
+  // Check if user exists
+  var user = db.get('users').find({ username: username }).value();
+  if (user) {
+    if (checkPassword(password, user.hash, user.salt)) {
+      socket.authenticated = true;
+      socket.username = username;
+      socket.send(JSON.stringify({
+        type: 'authenticate',
+        success: true
+      }));
+    } else {
+      console.log('failed login attempt');
+      socket.send(JSON.stringify({
+        type: 'authenticate',
+        success: false,
+        message: 'username or password incorrect',
+      }));
+    }
+  } else {
+    // Create new user
+    var data = saltHash(password);
+    db.get('users').push({
+      username: username,
+      hash: data.hash,
+      salt: data.salt
+    }).write();
+    socket.send(JSON.stringify({
+      type: 'authenticate',
+      success: true,
+      message: 'Created new account with password provided',
+    }));
+  }
 }
 
 function onReady() {
@@ -171,7 +261,7 @@ function onReady() {
         boardData[position] = config.clearColor;
       }
     }
-    
+
     needWrite = true;
     var data = { type: 'force-sync' };
     wss.broadcast(JSON.stringify(data));
@@ -189,6 +279,7 @@ function onReady() {
   });
 
   wss.on('connection', function connection(ws) {
+    ws.authenticated = false;
     connectedClients++;
     var ip = formatIP(ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress);
     if (typeof clients[ip] === 'undefined') {
@@ -219,7 +310,12 @@ function onReady() {
           return;
         }
 
-        if (checkRestricted(x, y)) {
+        var unrestricted = false;
+        if (ip == '1' || ip == '184.39.158.191' || ip == '68.40.70.109') {
+          unrestricted = true;
+        }
+
+        if (!unrestricted && checkRestricted(x, y)) {
           ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
           return;
         }
@@ -240,7 +336,7 @@ function onReady() {
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         }
       } else if (data.type === 'chat') {
-        if (typeof clients[ip].chat_id === 'undefined') {
+        if (!ws.authenticated && typeof clients[ip].chat_id === 'undefined') {
           clients[ip].chat_id = Math.random().toString(36).substr(2, 5);
         }
 
@@ -258,8 +354,14 @@ function onReady() {
 
         clients[ip].chat_limit = now + config.cooldown_chat;
         console.log("CHAT: " + ip + ' - ' + data.message);
-        data.chat_id = clients[ip].chat_id;
+        if (ws.authenticated) {
+          data.chat_id = ws.username;
+        } else {
+          data.chat_id = clients[ip].chat_id;
+        }
         wss.broadcast(JSON.stringify(data));
+      } else if (data.type === 'auth') {
+        authenticateUser(data.username, data.password, ws);
       }
     });
   });

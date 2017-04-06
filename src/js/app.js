@@ -254,6 +254,16 @@ window.App = {
         d.scrollTop(d.prop('scrollHeight'));
       } else if (data.type === 'force-sync') {
         this.forceSync();
+      } else if (data.type === 'authenticate') {
+        console.log(data);
+        if (data.message) this.alert(data.message);
+        if (data.success) {
+          $('.chat-options').hide();
+          $('.chat-log').show();
+          $('.chat-input').show();
+        } else {
+          $('#login-chat').prop('disabled', false);
+        }
       }
     }.bind(this);
 
@@ -276,7 +286,41 @@ window.App = {
     clearTimeout(update);
     update();
   },
+  authenticateChat: function () {
+    var username = $('#username').val();
+    var password = $('#password').val();
+    var authRequest = {
+      type: 'auth',
+      username: username,
+      password: password
+    };
+
+    this.socket.send(JSON.stringify(authRequest));
+  },
   initChat: function () {
+
+    var methods = $('.chat-methods');
+    var chatAuth = $('.chat-auth');
+    var chatInput = $('.chat-input');
+    var chatLog = $('.chat-log');
+    var loginButton = $('#login-chat');
+
+    $('#login').click(function () {
+      methods.hide();
+      chatAuth.show();
+    });
+
+    $('#anonymous').click(function () {
+      $('.chat-options').hide();
+      chatLog.show();
+      chatInput.show();
+    });
+
+    loginButton.click(function () {
+      loginButton.prop('disabled', true);
+      this.authenticateChat();
+    }.bind(this));
+
     this.elements.chatToggle.click(function () {
       this.elements.chatContainer.toggle();
 

@@ -13,6 +13,14 @@ block content
     button(class='chat-tab') CHAT
     div(class='chat')
       div(class='chat-log')
+      div(class='chat-options')
+        div(class='chat-methods')
+          button(id='login') Login
+          button(id='anonymous') Anonymous
+        div(class='chat-auth')
+          input(type='text', id='username')
+          input(type='password', id='password')
+          input(type='submit', id='login-chat', value='Login')
       textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
 
     div(class='cooldown-timer')
@@ -23,7 +31,7 @@ block content
 
     div(class='bubble-container')
       div(class='bubble')
-        a(href='http://pxls.space/', target='_blank') Main Server
+        a(href='https://discord.gg/t6mHzMZ', target='_blank') Discord
 
     div(class='coords') (0, 0)
     div(class='online') Loading...
