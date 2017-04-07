@@ -6,13 +6,14 @@
       "watch": true,
       "merge_logs": true,
       "ignore_watch": [
+        ".git"
         "node_modules",
+        "public",
+        "src",
         "board.dat",
         "board.tmp.dat",
         "users.nedb",
         "sessions.nedb",
-        "public/",
-        "src/",
       ],
       "env": {
         "NODE_ENV": "production"

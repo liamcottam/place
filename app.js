@@ -434,6 +434,7 @@ function onReady() {
 
           var position = (y * config.height) + x;
           data.prevColor = boardData[position];
+          data.username = (clients[id].username !== null) ? clients[id].username : clients[id].id;
           boardData[position] = color;
           needWrite = true;
           data.type = 'pixel';

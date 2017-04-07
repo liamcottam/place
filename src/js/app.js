@@ -45,6 +45,7 @@ window.App = {
     this.username = null;
     this.session_id = null;
     this.session_key = null;
+    this.spectate_user = null;
 
     $(".board-container").hide();
     $(".reticule").hide();
@@ -125,6 +126,8 @@ window.App = {
     var down = false;
 
     this.elements.boardContainer.on("mousedown", function (evt) {
+      this.spectate_user = null;
+      this.alert(null);
       dragX = evt.screenX;
       dragY = evt.screenY;
       down = true;
@@ -251,12 +254,19 @@ window.App = {
         var userList = $('.user-list');
         userList.empty();
         data.users.forEach(function (user) {
-          $('<li>').text(user).appendTo(userList);
+          $('<li>', { class: 'username' }).text(user).appendTo(userList);
         });
       } else if (data.type === "pixel") {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
         ctx.fillRect(data.x, data.y, 1, 1);
+        if (this.spectate_user !== null && this.spectate_user === data.username) {
+          console.log('SPECTATING');
+          this.centerOn(data.x, data.y);
+        } else {
+          console.log(data);
+
+        }
       } else if (data.type === "alert") {
         this.alert(data.message);
       } else if (data.type === "cooldown") {
@@ -290,7 +300,7 @@ window.App = {
         var userList = $('.user-list');
         userList.empty();
         data.users.forEach(function (user) {
-          $('<li>').text(user).appendTo(userList);
+          $('<li>', { class: 'username' }).text(user).appendTo(userList);
         });
       }
     }.bind(this);
@@ -414,59 +424,6 @@ window.App = {
         chatInput.val('');
       }
     }.bind(this));
-
-
-
-    /*var methods = $('.chat-methods');
-    var chatAuth = $('.chat-auth');
-    var chatInput = $('.chat-input');
-    var chatLog = $('.chat-log');
-    var loginButton = $('#login-chat');
-
-    $('#login').click(function () {
-      methods.hide();
-      chatAuth.show();
-    });
-
-    $('#anonymous').click(function () {
-      $('.chat-options').hide();
-      chatLog.show();
-      chatInput.show();
-    });
-
-    loginButton.click(function () {
-      loginButton.prop('disabled', true);
-      this.authenticateChat();
-    }.bind(this));
-
-    this.elements.chatToggle.click(function () {
-      this.elements.chatContainer.toggle();
-
-      if (this.elements.chatContainer.is(':visible')) {
-        this.elements.users.addClass('online-chat');
-        this.elements.palette.addClass('palette-chat');
-      } else {
-        this.elements.users.removeClass('online-chat');
-        this.elements.palette.removeClass('palette-chat');
-      }
-    }.bind(this));
-
-    this.elements.chatInput.keypress(function (e) {
-      if (e.which == 13) {
-        var data = this.elements.chatInput.val();
-        if (data === '')
-          return;
-
-        this.socket.send(JSON.stringify({
-          session_id: this.session_id,
-          type: 'chat',
-          message: data
-        }));
-
-        this.elements.chatInput.val('');
-        e.preventDefault();
-      }
-    }.bind(this));*/
   },
   updateTransform: function () {
     this.elements.boardMover
@@ -488,8 +445,8 @@ window.App = {
     return { x: x, y: y };
   },
   centerOn: function (x, y) {
-    this.panX = x - (this.width / 2) - 0.5;
-    this.panY = y - (this.height / 2) - 0.5;
+    this.panX = (500 - x) - 0.5;
+    this.panY = (500 - y) - 0.5;
     this.updateTransform();
   },
   switchColor: function (newColor) {
@@ -510,10 +467,16 @@ window.App = {
       y: y,
       color: this.color
     }));
+
     //this.switchColor(-1);
   },
   alert: function (message) {
     var alert = this.elements.alert;
+    if (message === null) {
+      this.elements.alert.fadeOut(200);
+      return;
+    }
+
     alert.find(".text").text(message);
     alert.fadeIn(200);
   },
@@ -546,7 +509,25 @@ window.App = {
     } else {
       setTimeout(this.updateTime.bind(this), 1000);
     }
-  }
+  },
+  spectate: function (username) {
+    this.alert('Spectating ' + username);
+    this.spectate_user = username;
+  },
 };
+
+$.contextMenu({
+  selector: '.username',
+  trigger: 'right',
+  zIndex: 1000,
+  items: {
+    spectate: {
+      name: 'Spectate',
+      callback: function (itemKey, opt) {
+        App.spectate(opt.$trigger.text());
+      }
+    }
+  }
+});
 
 App.init();
