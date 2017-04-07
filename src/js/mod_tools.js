@@ -64,6 +64,15 @@ window.ModTools = {
             }));
           }
         },
+        ban: {
+          name: 'Ban',
+          callback: function (itemKey, opt) {
+            App.socket.send(JSON.stringify({
+              type: 'ban',
+              session_id: opt.$trigger.text(),
+            }));
+          }
+        },
       }
     });
   }

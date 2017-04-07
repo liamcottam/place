@@ -15,6 +15,7 @@ var saltLength = 64;
 const Datastore = require('nedb');
 const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
 const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
+const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
 
 var numElements = config.width * config.height;
 var boardData = new Uint32Array(numElements);
@@ -238,6 +239,14 @@ function authenticateSession(username, session_key, session_id) {
   });
 }
 
+function checkBanned(ip, callback) {
+  banned_db.findOne({ ip: ip }, function (err, ip) {
+    if (err) throw err;
+    if (ip === null) return callback(false);
+    return callback(true);
+  });
+}
+
 function onReady() {
   var app = express();
   var server = http.createServer(app);
@@ -403,9 +412,39 @@ function onReady() {
         username: null,
         connected: true,
         connection_count: 1,
+        ready: false,
+        banned: false,
       };
 
       clientIPMap[ip] = id;
+    }
+
+    ws.on('close', function () {
+      clients[id].connection_count--;
+      connectedClients--;
+    });
+
+    checkBanned(ip, function (isBanned) {
+      clients[id].banned = isBanned;
+      clients[id].ready = true;
+      if (isBanned) {
+        clients[id].ws.send(JSON.stringify({
+          type: 'alert',
+          message: 'This IP address is banned'
+        }));
+      }
+    });
+
+    if (!clients[id].ready) {
+      return;
+    }
+
+    if (clients[id].banned) {
+      clients[id].ws.send(JSON.stringify({
+        type: 'alert',
+        message: 'This IP address is banned'
+      }));
+      return;
     }
 
     ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
@@ -422,11 +461,6 @@ function onReady() {
 
       wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
     }
-
-    ws.on('close', function () {
-      clients[id].connection_count--;
-      connectedClients--;
-    });
 
     ws.on('message', function (data) {
       try {
@@ -556,6 +590,37 @@ function onReady() {
           ws.send(JSON.stringify({
             type: 'alert',
             message: 'Cooldown for ' + data.session_id + ' failed'
+          }));
+        }
+      } else if (data.type === 'ban' && clients[id].is_moderator) {
+        var session_id = null;
+        var message = {
+          type: 'alert',
+          message: 'This IP address is banned'
+        };
+        if (typeof clients[data.session_id] !== 'undefined' && typeof clients[data.session_id].ws !== 'undefined') {
+          session_id = data.session_id;
+        } else {
+          for (key in clients) {
+            if (clients[key].username === data.session_id) {
+              session_id = key
+              break;
+            }
+          }
+        }
+
+        if (session_id !== null && !clients[session_id].is_moderator) {
+          clients[session_id].ws.send(JSON.stringify(cooldown));
+          banned_db.insert({ ip: ip });
+
+          ws.send(JSON.stringify({
+            type: 'alert',
+            message: 'Ban for ' + data.session_id + ' succeeded'
+          }));
+        } else {
+          ws.send(JSON.stringify({
+            type: 'alert',
+            message: 'Ban for ' + data.session_id + ' failed'
           }));
         }
       }

@@ -3,3 +3,4 @@ board.dat
 .htpasswd
 sessions.nedb
 users.nedb
+banned.nedb
