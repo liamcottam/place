@@ -263,11 +263,15 @@ window.App = {
         ctx.fillRect(data.x, data.y, 1, 1);
 
         var moveTickerBody = $('.move-ticker-body');
-
-        var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
-        $('<span>', { "class": 'chat-id' }).text(data.session_id + ': ').appendTo(div);
-        $('<span>', { "class": 'chat-message' }).text('x: ' + data.x + ' y: ' + data.y).appendTo(div);
-        moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+        if (moveTickerBody.is(':visible')) {
+          var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
+          $('<span>', { "class": 'chat-id' }).text(data.session_id + ': ').appendTo(div);
+          $('<span>', { "class": 'chat-message' }).text('x: ' + data.x + ' y: ' + data.y).appendTo(div);
+          moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+          if (moveTickerBody.children().length >= 25) {
+            moveTickerBody.find('.chat-line:first').remove();
+          }
+        }
 
         if (this.spectate_user !== null && this.spectate_user === data.session_id) {
           this.centerOn(data.x, data.y);
@@ -283,6 +287,10 @@ window.App = {
         $('<span>', { "class": 'chat-id' }).text(data.chat_id + ': ').appendTo(div);
         $('<span>', { "class": 'chat-message' }).text(data.message).appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
+
+        if (d.children().length >= 125) {
+          d.find('.chat-line:first').remove();
+        }
       } else if (data.type === 'force-sync') {
         this.forceSync();
       } else if (data.type === 'authenticate') {
@@ -433,10 +441,17 @@ window.App = {
   initMoveTicker: function () {
     var moveTickerHeader = $('.move-ticker-header');
     var moveTickerBody = $('.move-ticker-body');
+    var userListContainer = $('.user-list');
 
     moveTickerHeader.click(function () {
       moveTickerBody.toggle();
       moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+
+      if (moveTickerBody.is(':visible')) {
+        userListContainer.addClass('user-list-ticker');
+      } else {
+        userListContainer.removeClass('user-list-ticker');
+      }
     });
   },
   updateTransform: function () {

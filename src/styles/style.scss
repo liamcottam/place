@@ -244,10 +244,20 @@ body {
 
 .user-list {
     margin:0; padding:0;
+    position: absolute;
+    top: 0;
+    bottom: 65px;
     list-style-type: none;
+    width:100%;
+    overflow: hidden;
+    overflow-y: auto;
 }
 
-.chat-log .chat-line, .user-list, .move-ticker-body {
+.user-list-ticker {
+ bottom: 272px;
+}
+
+.chat-log .chat-line, .user-list .username, .move-ticker-body {
     font-size: 13px;
     margin: 3px;
 }
