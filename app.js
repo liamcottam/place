@@ -422,6 +422,8 @@ function onReady() {
         authenticateUser(data.username, data.password, id);
       } else if (data.type === 'reauth') {
         authenticateSession(data.username, data.session_key, id);
+      } else if (data.type === 'logout') {
+        clients[id] = { id: Math.random().toString(36).substr(2, 5), ip: ip, ws: ws };
       }
     });
   });

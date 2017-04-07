@@ -30,7 +30,7 @@ window.App = {
     reticule: $(".reticule"),
     alert: $(".message"),
     coords: $(".coords"),
-    users: $(".online"),
+    userCount: $(".user-count"),
     chatToggle: $(".chat-tab"),
     chatContainer: $(".chat"),
     chatInput: $('.chat-input'),
@@ -52,7 +52,7 @@ window.App = {
     $('.message').hide();
     $(".cursor").hide();
     $(".cooldown-timer").hide();
-    $(".online").hide();
+    this.elements.userCount.hide();
 
     $.get("/boardinfo", this.initBoard.bind(this));
 
@@ -62,6 +62,7 @@ window.App = {
     this.initReticule();
     this.initAlert();
     this.initCoords();
+    this.initChat();
     //Notification.requestPermission();
   },
   initBoard: function (data) {
@@ -229,7 +230,7 @@ window.App = {
       $(".board-container").show();
       $(".ui").show();
       $(".loading").fadeOut(500);
-      this.initChat();
+
       this.initUsers();
       this.elements.alert.fadeOut(200);
       if (this.connectionLost) {
@@ -267,14 +268,7 @@ window.App = {
         this.forceSync();
       } else if (data.type === 'authenticate') {
         if (data.message) this.alert(data.message);
-        if (data.success) {
-          this.session_key = data.session_key;
-          $('.chat-options').hide();
-          $('.chat-log').show();
-          $('.chat-input').show();
-        } else {
-          $('#login-chat').prop('disabled', false);
-        }
+        this.onAuthentication(data)
       }
     }.bind(this);
 
@@ -288,8 +282,8 @@ window.App = {
   initUsers: function () {
     var update = function () {
       $.get("/users", function (data) {
-        this.elements.users.fadeIn(200);
-        this.elements.users.text(data + " online");
+        this.elements.userCount.fadeIn(200);
+        this.elements.userCount.text('Users: ' + data);
         setTimeout(update.bind(this), 15000);
       }.bind(this));
     }.bind(this);
@@ -308,9 +302,91 @@ window.App = {
       password: password
     }));
   },
-  initChat: function () {
+  onAuthentication: function (data) {
+    var loginContainer = $('.login-container');
+    var loginToggle = $('.chat-login');
+    var chatBody = $('.chat-body');
+    var loginButton = $('.login-button');
 
-    var methods = $('.chat-methods');
+    if (data.success) {
+      this.session_key = data.session_key;
+      loginToggle.text('Logout');
+
+      loginContainer.hide();
+      chatBody.show();
+      this.elements.palette.addClass('palette-chat');
+    } else {
+      loginButton.prop('disabled', false);
+    }
+  },
+  initChat: function () {
+    var chatToggle = $('.chat-toggle');
+    var usersToggle = $('.user-count');
+    var loginToggle = $('.chat-login');
+    var loginButton = $('.login-button');
+    var chatBody = $('.chat-body');
+    var chatInput = $('.chat-input');
+    var usersContainer = $('.users-container');
+    var loginContainer = $('.login-container');
+
+    chatToggle.click(function () {
+      loginContainer.hide();
+      chatBody.toggle();
+
+      if (chatBody.is(':visible')) this.elements.palette.addClass('palette-chat');
+      else this.elements.palette.removeClass('palette-chat');
+    }.bind(this));
+
+    loginButton.click(function () {
+      loginButton.prop('disabled', true);
+      this.authenticateChat();
+    }.bind(this));
+
+    loginToggle.click(function () {
+      if (this.session_key != null) {
+        loginToggle.text('Login');
+        this.socket.send(JSON.stringify({
+          type: 'logout',
+          session_id: this.session_id,
+          session_key: this.session_key
+        }));
+        this.session_key = null;
+        loginButton.prop('disabled', false);
+        return;
+      }
+
+      loginContainer.toggle();
+
+      if (loginContainer.is(':visible')) {
+        this.elements.palette.addClass('palette-chat');
+        chatBody.hide();
+        usersContainer.hide();
+      } else {
+        this.elements.palette.removeClass('palette-chat');
+      }
+
+    }.bind(this));
+
+    chatInput.keypress(function (e) {
+      if (e.which == 13) {
+        e.preventDefault();
+
+        var data = chatInput.val();
+        if (data === '') return;
+
+        this.socket.send(JSON.stringify({
+          session_id: this.session_id,
+          type: 'chat',
+          message: data
+        }));
+
+        chatInput.val('');
+      }
+    }.bind(this));
+
+
+
+    /*var methods = $('.chat-methods');
     var chatAuth = $('.chat-auth');
     var chatInput = $('.chat-input');
     var chatLog = $('.chat-log');
@@ -359,7 +435,7 @@ window.App = {
         this.elements.chatInput.val('');
         e.preventDefault();
       }
-    }.bind(this));
+    }.bind(this));*/
   },
   updateTransform: function () {
     this.elements.boardMover

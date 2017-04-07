@@ -27,5 +27,15 @@ gulp.task('js', function(){
 		.pipe(gulp.dest('public/js/'))
 });
 
+gulp.task('watch', function () {
+  gulp.watch('src/js/**/*.js', function (event) {
+    gulp.run('js');
+  });
 
-gulp.task('default', ['js', 'sass']);
+  gulp.watch('src/styles/**/*.scss', function (event) {
+    gulp.run('sass');
+  });
+});
+
+
+gulp.task('default', ['js', 'sass', 'watch']);

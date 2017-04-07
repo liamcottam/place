@@ -10,18 +10,25 @@ block content
         canvas(id='board', width=100, height=100)
 
   div(class='ui', id='ui')
-    button(class='chat-tab') CHAT
     div(class='chat')
-      div(class='chat-log')
-      div(class='chat-options')
-        div(class='chat-methods')
-          button(id='login') Login
-          button(id='anonymous') Anonymous
-        div(class='chat-auth')
-          input(type='text', id='username')
-          input(type='password', id='password')
-          input(type='submit', id='login-chat', value='Login')
-      textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
+      div(class='chat-header')
+        a(class='user-count') 
+        a(class='chat-login') Login
+        a(class='chat-toggle') Show Chat
+        
+      div(class='chat-body')
+        div(class='chat-log')
+        textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
+
+      div(class='login-container')
+        div(class='login-form')
+          div(class='login-fix')
+            input(type='text', id='username')
+            input(type='password', id='password')
+            input(type='submit', class='login-button', value='Login')
+
+      //div(class='users-container')
+        
 
     div(class='cooldown-timer')
     div(class='message')
@@ -34,6 +41,4 @@ block content
         a(href='https://discord.gg/t6mHzMZ', target='_blank') Discord
 
     div(class='coords') (0, 0)
-    div(class='online') Loading...
-
     div(class='cursor', id='cursor')
