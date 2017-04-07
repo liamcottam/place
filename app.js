@@ -22,7 +22,7 @@ var boardData = new Uint32Array(numElements);
 var needWrite = false;
 var connectedClients = 0;
 var clients = [];
-var clientIPMap = [];
+var ipClients = [];
 
 // TODO: Move to DB/File or something
 var restrictedRegions = [
@@ -85,6 +85,10 @@ var restrictedRegions = [
   { // Serperior
     start: { x: 111, y: 214 },
     end: { x: 232, y: 238 }
+  },
+  { // Lady
+    start: { x: 676, y: 308 },
+    end: { x: 771, y: 395 }
   },
 ];
 
@@ -228,7 +232,6 @@ function authenticateSession(username, session_key, session_id) {
           success: true
         }));
       } else {
-        console.log('invalid session');
         clients[session_id].ws.send(JSON.stringify({
           type: 'reauth',
           success: false,
@@ -380,74 +383,50 @@ function onReady() {
   wss.on('connection', function connection(ws) {
     connectedClients++;
     var ip = formatIP(ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress);
-    var id = null;
+    var id = Math.random().toString(36).substr(2, 5);
 
-    // Check for previous session by ip
-    if (typeof clientIPMap[ip] !== 'undefined') {
-      id = clientIPMap[ip];
-    }
-
-    if (id !== null) {
-      if (clients[id].username !== null && clients[id].connection_count >= 1) {
-        try {
-          clients[id].ws.send(JSON.stringify({
-            type: 'authenticate',
-            success: false,
-            message: 'Multiple sessions detected so you have been logged out'
-          }));
-        } catch (err) {
-          console.error(err);
-        }
-      }
-      clients[id].username = null;
-      clients[id].is_moderator = false;
-      clients[id].ws = ws;
-      clients[id].connection_count++;
-    } else {
-      id = Math.random().toString(36).substr(2, 5);
-      clients[id] = {
-        id: id,
-        ip: ip,
-        ws: ws,
-        username: null,
-        connected: true,
-        connection_count: 1,
-        ready: false,
-        banned: false,
+    // IP is only used for cooldowns
+    if (typeof ipClients[ip] === 'undefined') {
+      ipClients[ip] = {
+        cooldown: 0,
+        cooldown_chat: 0,
       };
-
-      clientIPMap[ip] = id;
     }
 
     ws.on('close', function () {
-      clients[id].connection_count--;
+      delete clients[id];
       connectedClients--;
     });
+
+    clients[id] = { ready: false };
 
     checkBanned(ip, function (isBanned) {
       clients[id].banned = isBanned;
       clients[id].ready = true;
+
       if (isBanned) {
-        clients[id].ws.send(JSON.stringify({
+        ws.send(JSON.stringify({
           type: 'alert',
           message: 'This IP address is banned'
         }));
+
+        clients[id] = { banned: true, ready: true };
+      } else {
+        clients[id] = {
+          id: id,
+          ip: ip,
+          username: null,
+          is_moderator: false,
+          ws: ws,
+          connected: true,
+          ready: false,
+          banned: false
+        };
+
+        ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
       }
     });
 
-    if (!clients[id].ready) {
-      return;
-    }
-
-    if (clients[id].banned) {
-      clients[id].ws.send(JSON.stringify({
-        type: 'alert',
-        message: 'This IP address is banned'
-      }));
-      return;
-    }
-
-    ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
     if (userArray.length === 0) {
       for (key in clients) {
         if (clients[key].connected) {
@@ -463,6 +442,14 @@ function onReady() {
     }
 
     ws.on('message', function (data) {
+      if (clients[id].banned) {
+        ws.send(JSON.stringify({
+          type: 'alert',
+          message: 'This IP address is banned'
+        }));
+        return;
+      }
+
       try {
         var data = JSON.parse(data);
       } catch (err) {
@@ -492,10 +479,10 @@ function onReady() {
         }
 
         var now = Date.now();
-        if (typeof clients[id].cooldown === 'undefined' || clients[id].cooldown - now <= 0) {
+        if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now <= 0 || clients[id].is_moderator) {
           var diff = 0;
           if (!clients[id].is_moderator) {
-            clients[id].cooldown = now + (1000 * config.cooldown);
+            ipClients[ip].cooldown = now + (1000 * config.cooldown);
             diff = config.cooldown;
           }
 
@@ -514,17 +501,17 @@ function onReady() {
 
         if (data.message === '') return;
         var now = Date.now();
-        if (typeof clients[id].chat_limit !== 'undefined') {
-          var delta = now - clients[id].chat_limit;
+        if (typeof ipClients[ip].chat_limit !== 'undefined') {
+          var delta = now - ipClients[ip].chat_limit;
           if (delta < 0) {
             console.log("CHAT-LIMIT: " + ip + ' - ' + data.message);
-            clients[id].chat_limit = now + config.cooldown_chat;
+            ipClients[ip].chat_limit = now + config.cooldown_chat;
             ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limit exceeded' }));
             return;
           }
         }
 
-        clients[id].chat_limit = now + config.cooldown_chat;
+        ipClients[ip].chat_limit = now + config.cooldown_chat;
         console.log("CHAT: " + ip + ' - ' + data.message);
         if (clients[id].username !== null) {
           data.chat_id = clients[id].username;
@@ -534,24 +521,9 @@ function onReady() {
 
         wss.broadcast(JSON.stringify(data));
       } else if (data.type === 'auth') {
-        if (clients[id].connection_count == 1) {
-          authenticateUser(data.username, data.password, id);
-        } else {
-          ws.send(JSON.stringify({
-            type: 'authenticate',
-            success: false,
-            message: 'There are multiple connections from this IP and cannot be authenticated'
-          }));
-        }
+        authenticateUser(data.username, data.password, id);
       } else if (data.type === 'reauth') {
-        if (typeof clients[id] === 'undefined' || (typeof clients[id] !== 'undefined' && clients[id].connection_count == 1)) {
-          authenticateSession(data.username, data.session_key, id);
-        } else {
-          clients[id].ws.send(JSON.stringify({
-            type: 'reauth',
-            success: false,
-          }));
-        }
+        authenticateSession(data.username, data.session_key, id);
       } else if (data.type === 'logout') {
         var new_id = Math.random().toString(36).substr(2, 5);
         var old_client = clients[id];
@@ -560,7 +532,6 @@ function onReady() {
         id = new_id;
         clients[id] = old_client;
         clients[id].id = id;
-        clientIPMap[ip] = id;
       } else if (data.type === 'cooldown' && clients[id].is_moderator) {
         var session_id = null;
         var cooldown = {
@@ -579,7 +550,7 @@ function onReady() {
         }
 
         if (session_id !== null && !clients[session_id].is_moderator) {
-          clients[session_id].cooldown = Date.now() + (1000 * cooldown.wait);
+          ipClients[clients[session_id].ip].cooldown = Date.now() + (1000 * cooldown.wait);
           clients[session_id].ws.send(JSON.stringify(cooldown));
 
           ws.send(JSON.stringify({
@@ -610,8 +581,8 @@ function onReady() {
         }
 
         if (session_id !== null && !clients[session_id].is_moderator) {
-          clients[session_id].ws.send(JSON.stringify(cooldown));
-          banned_db.insert({ ip: ip });
+          clients[session_id].ws.send(JSON.stringify(message));
+          banned_db.insert({ ip: clients[session_id].ip });
 
           ws.send(JSON.stringify({
             type: 'alert',
