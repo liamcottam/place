@@ -1,14 +1,18 @@
 {
   "apps": [
     {
-      "name": "place-thing",
+      "name": "place-reloaded",
       "script": "app.js",
       "watch": true,
       "merge_logs": true,
       "ignore_watch": [
         "node_modules",
         "board.dat",
-        "board.tmp.dat"
+        "board.tmp.dat",
+        "users.nedb",
+        "sessions.nedb",
+        "public/",
+        "src/",
       ],
       "env": {
         "NODE_ENV": "production"

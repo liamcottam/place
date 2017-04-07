@@ -84,7 +84,6 @@ window.App = {
     this.updateTransform();
 
     this.initSocket();
-    setInterval(this.updateTime.bind(this), 1000);
     jQuery.get("/boarddata", this.drawBoard.bind(this));
   },
   drawBoard: function (data) {
@@ -231,7 +230,6 @@ window.App = {
       $(".ui").show();
       $(".loading").fadeOut(500);
 
-      this.initUsers();
       this.elements.alert.fadeOut(200);
       if (this.connectionLost) {
         jQuery.get("/boarddata", this.drawBoard.bind(this));
@@ -249,6 +247,12 @@ window.App = {
       var data = JSON.parse(msg.data);
       if (data.type === 'session') {
         this.session_id = data.session_id;
+        this.updateUserCount(data.users.length);
+        var userList = $('.user-list');
+        userList.empty();
+        data.users.forEach(function (user) {
+          $('<li>').text(user).appendTo(userList);
+        });
       } else if (data.type === "pixel") {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
@@ -269,6 +273,25 @@ window.App = {
       } else if (data.type === 'authenticate') {
         if (data.message) this.alert(data.message);
         this.onAuthentication(data)
+      } else if (data.type === 'reauth') {
+        var loginToggle = $('.chat-login');
+        var loginButton = $('.login-button');
+
+        if (!data.success) {
+          loginToggle.text('Login');
+          this.session_key = null;
+          loginButton.prop('disabled', false);
+        } else {
+          loginToggle.text('Logout');
+          loginButton.prop('disabled', true);
+        }
+      } else if (data.type === 'users') {
+        this.updateUserCount(data.users.length);
+        var userList = $('.user-list');
+        userList.empty();
+        data.users.forEach(function (user) {
+          $('<li>').text(user).appendTo(userList);
+        });
       }
     }.bind(this);
 
@@ -279,17 +302,9 @@ window.App = {
       setTimeout(this.initSocket.bind(this), 1000);
     }.bind(this);
   },
-  initUsers: function () {
-    var update = function () {
-      $.get("/users", function (data) {
-        this.elements.userCount.fadeIn(200);
-        this.elements.userCount.text('Users: ' + data);
-        setTimeout(update.bind(this), 15000);
-      }.bind(this));
-    }.bind(this);
-
-    clearTimeout(update);
-    update();
+  updateUserCount: function (count) {
+    this.elements.userCount.fadeIn(200);
+    this.elements.userCount.text('Users: ' + count);
   },
   authenticateChat: function () {
     this.username = $('#username').val();
@@ -330,11 +345,15 @@ window.App = {
     var loginContainer = $('.login-container');
 
     chatToggle.click(function () {
-      loginContainer.hide();
       chatBody.toggle();
+      usersContainer.hide();
+      loginContainer.hide();
 
-      if (chatBody.is(':visible')) this.elements.palette.addClass('palette-chat');
-      else this.elements.palette.removeClass('palette-chat');
+      if (chatBody.is(':visible')) {
+        this.elements.palette.addClass('palette-chat');
+      } else {
+        this.elements.palette.removeClass('palette-chat');
+      }
     }.bind(this));
 
     loginButton.click(function () {
@@ -354,17 +373,29 @@ window.App = {
         loginButton.prop('disabled', false);
         return;
       }
-
+      chatBody.hide();
+      usersContainer.hide();
       loginContainer.toggle();
 
       if (loginContainer.is(':visible')) {
         this.elements.palette.addClass('palette-chat');
-        chatBody.hide();
-        usersContainer.hide();
+
       } else {
         this.elements.palette.removeClass('palette-chat');
       }
 
+    }.bind(this));
+
+    usersToggle.click(function () {
+      chatBody.hide();
+      usersContainer.toggle();
+      loginContainer.hide();
+
+      if (usersContainer.is(':visible')) {
+        this.elements.palette.addClass('palette-chat');
+      } else {
+        this.elements.palette.removeClass('palette-chat');
+      }
     }.bind(this));
 
     chatInput.keypress(function (e) {
@@ -511,6 +542,9 @@ window.App = {
       /*new Notification("Place Thing", {
         body: "Your next pixel is available!"
       });*/
+
+    } else {
+      setTimeout(this.updateTime.bind(this), 1000);
     }
   }
 };

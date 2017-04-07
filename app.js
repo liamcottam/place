@@ -348,31 +348,51 @@ function onReady() {
     res.sendStatus(err.status || 500);
   });
 
+  var userArray = [];
+  setInterval(function () {
+    userArray = [];
+    for (key in clients) {
+      if (clients[key].connected) {
+        if (clients[key].username !== null) {
+          userArray.push(clients[key].username);
+        } else {
+          userArray.push(key);
+        }
+      }
+    }
+
+    wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
+  }, 10000);
+
   wss.on('connection', function connection(ws) {
-    ws.authenticated = false;
     connectedClients++;
     var ip = formatIP(ws.upgradeReq.headers['x-forwarded-for'] || ws.upgradeReq.connection.remoteAddress);
-    var id = Math.random().toString(36).substr(2, 5);
-    var hasSession = false;
+    var id = null;
 
     // Check for previous session by ip
     if (typeof clientIPMap[ip] !== 'undefined') {
       id = clientIPMap[ip];
-    } else {
-      clientIPMap[ip] = id;
     }
 
-    if (typeof clients[id] === 'undefined') {
-      clients[id] = { id: id, ip: ip, ws: ws };
+    if (id === null) {
+      id = Math.random().toString(36).substr(2, 5);
+      clients[id] = {
+        id: id,
+        ip: ip,
+        ws: ws,
+        username: null,
+        connected: true,
+      };
     } else {
-      clients[id].username = null;
+      delete clients[id].username;
       clients[id].is_moderator = false;
       clients[id].ws = ws;
     }
 
-    ws.send(JSON.stringify({ session_id: id, type: 'session' }));
+    ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
 
     ws.on('close', function () {
+      clients[id].connected = false;
       connectedClients--;
     });
 
@@ -436,7 +456,7 @@ function onReady() {
 
         clients[id].chat_limit = now + config.cooldown_chat;
         console.log("CHAT: " + ip + ' - ' + data.message);
-        if (typeof clients[id].username !== 'undefined') {
+        if (clients[id].username !== null) {
           data.chat_id = clients[id].username;
         } else {
           data.chat_id = clients[id].id;
@@ -448,7 +468,7 @@ function onReady() {
       } else if (data.type === 'reauth') {
         authenticateSession(data.username, data.session_key, id);
       } else if (data.type === 'logout') {
-        clients[id] = { id: Math.random().toString(36).substr(2, 5), ip: ip, ws: ws };
+        clients[id] = { id: Math.random().toString(36).substr(2, 5), ip: ip, ws: ws, username: null, connected: true };
       }
     });
   });

@@ -210,6 +210,7 @@ body {
     top: 40px;
     background-color: #efeef1;
     border-left: 1px solid #dad8de;
+    z-index: 999;
 }
 
 .chat-input {
@@ -239,6 +240,11 @@ body {
     bottom: 97px;
     overflow: hidden;
     overflow-y: auto;
+}
+
+.user-list {
+    margin:0; padding:0;
+    list-style-type: none;
 }
 
 .chat-log .chat-line {

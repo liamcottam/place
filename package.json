@@ -1,5 +1,5 @@
 {
-  "name": "place-thing",
+  "name": "place-reloaded",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -14,11 +14,9 @@
     "crypto": "0.0.3",
     "express": "^4.15.2",
     "http-auth": "^3.1.3",
-    "lowdb": "^0.16.0",
     "morgan": "^1.8.1",
     "nedb": "^1.8.0",
     "pug": "^2.0.0-beta11",
-    "websocket": "^1.0.24",
     "ws": "^2.2.3"
   },
   "devDependencies": {
