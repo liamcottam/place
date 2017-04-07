@@ -20,19 +20,25 @@ gulp.task('sass', function() {
  * Compile and minify js
  */
 gulp.task('js', function(){
-	return gulp.src('src/js/**/*.js')
+	gulp.src('src/js/app.js')
 		.pipe(plumber())
 		.pipe(concat('app.js'))
 		.pipe(uglify())
-		.pipe(gulp.dest('public/js/'))
+		.pipe(gulp.dest('public/js/'));
+
+  gulp.src('src/js/mod_tools.js')
+		.pipe(plumber())
+		.pipe(concat('mod_tools.js'))
+		.pipe(uglify())
+		.pipe(gulp.dest('public/js/'));
 });
 
 gulp.task('watch', function () {
-  gulp.watch('src/js/**/*.js', function (event) {
+  gulp.watch('src/js/*.js', function (event) {
     gulp.run('js');
   });
 
-  gulp.watch('src/styles/**/*.scss', function (event) {
+  gulp.watch('src/styles/*.scss', function (event) {
     gulp.run('sass');
   });
 });

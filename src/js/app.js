@@ -349,9 +349,11 @@ window.App = {
     if (data.success) {
       this.session_key = data.session_key;
       loginToggle.text('Logout');
-
       loginContainer.hide();
       chatBody.show();
+      if (data.is_moderator) {
+        $.get('js/mod_tools.js', function (data) { eval(data) });
+      }
       this.elements.palette.addClass('palette-chat');
     } else {
       loginButton.prop('disabled', false);

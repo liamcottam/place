@@ -158,11 +158,15 @@ function authenticateUser(username, password, session_id) {
         clients[session_id].is_moderator = user.is_moderator;
         var session_key = generateSalt();
 
-        clients[session_id].ws.send(JSON.stringify({
+        var response = {
           type: 'authenticate',
           success: true,
           session_key: session_key,
-        }));
+        }
+        if (user.is_moderator) {
+          response.is_moderator = true;
+        }
+        clients[session_id].ws.send(JSON.stringify(response));
 
         session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
       } else {
@@ -374,7 +378,23 @@ function onReady() {
       id = clientIPMap[ip];
     }
 
-    if (id === null) {
+    if (id !== null) {
+      if (clients[id].username !== null && clients[id].connection_count >= 1) {
+        try {
+          clients[id].ws.send(JSON.stringify({
+            type: 'authenticate',
+            success: false,
+            message: 'Multiple sessions detected so you have been logged out'
+          }));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      clients[id].username = null;
+      clients[id].is_moderator = false;
+      clients[id].ws = ws;
+      clients[id].connection_count++;
+    } else {
       id = Math.random().toString(36).substr(2, 5);
       clients[id] = {
         id: id,
@@ -382,12 +402,10 @@ function onReady() {
         ws: ws,
         username: null,
         connected: true,
+        connection_count: 1,
       };
-    } else {
-      delete clients[id].username;
-      clients[id].connected = true;
-      clients[id].is_moderator = false;
-      clients[id].ws = ws;
+
+      clientIPMap[ip] = id;
     }
 
     ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
@@ -406,7 +424,7 @@ function onReady() {
     }
 
     ws.on('close', function () {
-      clients[id].connected = false;
+      clients[id].connection_count--;
       connectedClients--;
     });
 
@@ -482,11 +500,64 @@ function onReady() {
 
         wss.broadcast(JSON.stringify(data));
       } else if (data.type === 'auth') {
-        authenticateUser(data.username, data.password, id);
+        if (clients[id].connection_count == 1) {
+          authenticateUser(data.username, data.password, id);
+        } else {
+          ws.send(JSON.stringify({
+            type: 'authenticate',
+            success: false,
+            message: 'There are multiple connections from this IP and cannot be authenticated'
+          }));
+        }
       } else if (data.type === 'reauth') {
-        authenticateSession(data.username, data.session_key, id);
+        if (typeof clients[id] === 'undefined' || (typeof clients[id] !== 'undefined' && clients[id].connection_count == 1)) {
+          authenticateSession(data.username, data.session_key, id);
+        } else {
+          clients[id].ws.send(JSON.stringify({
+            type: 'reauth',
+            success: false,
+          }));
+        }
       } else if (data.type === 'logout') {
-        clients[id] = { id: Math.random().toString(36).substr(2, 5), ip: ip, ws: ws, username: null, connected: true };
+        var new_id = Math.random().toString(36).substr(2, 5);
+        var old_client = clients[id];
+        delete clients[id];
+        delete old_client.username;
+        id = new_id;
+        clients[id] = old_client;
+        clients[id].id = id;
+        clientIPMap[ip] = id;
+      } else if (data.type === 'cooldown' && clients[id].is_moderator) {
+        var session_id = null;
+        var cooldown = {
+          type: 'cooldown',
+          wait: 30
+        };
+        if (typeof clients[data.session_id] !== 'undefined' && typeof clients[data.session_id].ws !== 'undefined') {
+          session_id = data.session_id;
+        } else {
+          for (key in clients) {
+            if (clients[key].username === data.session_id) {
+              session_id = key
+              break;
+            }
+          }
+        }
+
+        if (session_id !== null && !clients[session_id].is_moderator) {
+          clients[session_id].cooldown = Date.now() + (1000 * cooldown.wait);
+          clients[session_id].ws.send(JSON.stringify(cooldown));
+
+          ws.send(JSON.stringify({
+            type: 'alert',
+            message: 'Cooldown for ' + data.session_id + ' succeeded'
+          }));
+        } else {
+          ws.send(JSON.stringify({
+            type: 'alert',
+            message: 'Cooldown for ' + data.session_id + ' failed'
+          }));
+        }
       }
     });
   });
@@ -518,6 +589,7 @@ function synchroniseFile() {
     setTimeout(synchroniseFile, 100);
   }
 }
+
 
 if (!fs.existsSync('.htpasswd')) {
   fs.writeFile('.htpasswd', 'user:user', function (err) {
