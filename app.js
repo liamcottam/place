@@ -442,6 +442,11 @@ function onReady() {
     }
 
     ws.on('message', function (data) {
+      if (typeof clients[id] === 'undefined') {
+        ws.send(JSON.stringify({ type: 'alert', message: 'Invalid session, please refresh' }));
+        return;
+      }
+
       if (clients[id].banned) {
         ws.send(JSON.stringify({
           type: 'alert',
@@ -455,10 +460,6 @@ function onReady() {
       } catch (err) {
         console.error('Invalid JSON: ' + err);
         console.log(data);
-      }
-
-      if (typeof clients[id] === 'undefined') {
-        ws.send(JSON.stringify({ type: 'alert', message: 'Invalid session, please refresh' }));
       }
 
       if (data.type === "place") {
@@ -582,6 +583,7 @@ function onReady() {
 
         if (session_id !== null && !clients[session_id].is_moderator) {
           clients[session_id].ws.send(JSON.stringify(message));
+          clients[session_id].banned = true;
           banned_db.insert({ ip: clients[session_id].ip });
 
           ws.send(JSON.stringify({
