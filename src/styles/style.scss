@@ -247,13 +247,33 @@ body {
     list-style-type: none;
 }
 
-.chat-log .chat-line, .user-list {
+.chat-log .chat-line, .user-list, .move-ticker-body {
     font-size: 13px;
     margin: 3px;
 }
 
 .chat-log .chat-message {
     word-break: break-word;
+}
+
+.move-ticker {
+    border-top: 1px solid #dad8de;
+    width: $chatWidth + 8 * 2;
+    position: fixed;
+    bottom: 0;
+}
+
+.move-ticker-header {
+    text-align: center;
+    padding: 3px;
+    cursor: pointer;
+}
+
+.move-ticker-body {
+    display: none;
+    height: 200px;
+    border-top: 1px solid #dad8de;
+    overflow-y: auto;
 }
 
 /*.chat {

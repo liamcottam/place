@@ -64,6 +64,7 @@ window.App = {
     this.initAlert();
     this.initCoords();
     this.initChat();
+    this.initMoveTicker();
     //Notification.requestPermission();
   },
   initBoard: function (data) {
@@ -260,6 +261,14 @@ window.App = {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
         ctx.fillRect(data.x, data.y, 1, 1);
+
+        var moveTickerBody = $('.move-ticker-body');
+
+        var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
+        $('<span>', { "class": 'chat-id' }).text(data.session_id + ': ').appendTo(div);
+        $('<span>', { "class": 'chat-message' }).text('x: ' + data.x + ' y: ' + data.y).appendTo(div);
+        moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+
         if (this.spectate_user !== null && this.spectate_user === data.session_id) {
           this.centerOn(data.x, data.y);
         }
@@ -420,6 +429,15 @@ window.App = {
         chatInput.val('');
       }
     }.bind(this));
+  },
+  initMoveTicker: function () {
+    var moveTickerHeader = $('.move-ticker-header');
+    var moveTickerBody = $('.move-ticker-body');
+
+    moveTickerHeader.click(function () {
+      moveTickerBody.toggle();
+      moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+    });
   },
   updateTransform: function () {
     this.elements.boardMover

@@ -362,7 +362,7 @@ function onReady() {
     }
 
     wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
-  }, 10000);
+  }, 3000);
 
   wss.on('connection', function connection(ws) {
     connectedClients++;
@@ -385,6 +385,7 @@ function onReady() {
       };
     } else {
       delete clients[id].username;
+      clients[id].connected = true;
       clients[id].is_moderator = false;
       clients[id].ws = ws;
     }
@@ -433,6 +434,7 @@ function onReady() {
         }
 
         if (!clients[id].is_moderator === true && checkRestricted(x, y)) {
+          console.log('PLACE: Restricted Area');
           ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
           return;
         }
@@ -453,6 +455,8 @@ function onReady() {
           data.type = 'pixel';
           wss.broadcast(JSON.stringify(data));
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
+        } else {
+          console.log('PLACE: Attempted Place Before Cooldown');
         }
       } else if (data.type === 'chat') {
 
