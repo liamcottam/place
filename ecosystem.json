@@ -6,7 +6,7 @@
       "watch": true,
       "merge_logs": true,
       "ignore_watch": [
-        ".git"
+        ".git",
         "node_modules",
         "public",
         "src",

@@ -260,12 +260,8 @@ window.App = {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
         ctx.fillRect(data.x, data.y, 1, 1);
-        if (this.spectate_user !== null && this.spectate_user === data.username) {
-          console.log('SPECTATING');
+        if (this.spectate_user !== null && this.spectate_user === data.session_id) {
           this.centerOn(data.x, data.y);
-        } else {
-          console.log(data);
-
         }
       } else if (data.type === "alert") {
         this.alert(data.message);

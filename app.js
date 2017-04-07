@@ -390,6 +390,19 @@ function onReady() {
     }
 
     ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
+    if (userArray.length === 0) {
+      for (key in clients) {
+        if (clients[key].connected) {
+          if (clients[key].username !== null) {
+            userArray.push(clients[key].username);
+          } else {
+            userArray.push(key);
+          }
+        }
+      }
+
+      wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
+    }
 
     ws.on('close', function () {
       clients[id].connected = false;
@@ -434,7 +447,7 @@ function onReady() {
 
           var position = (y * config.height) + x;
           data.prevColor = boardData[position];
-          data.username = (clients[id].username !== null) ? clients[id].username : clients[id].id;
+          data.session_id = (clients[id].username !== null) ? clients[id].username : clients[id].id;
           boardData[position] = color;
           needWrite = true;
           data.type = 'pixel';
