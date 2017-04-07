@@ -73,6 +73,18 @@ var restrictedRegions = [
     start: { x: 561, y: 43 },
     end: { x: 647, y: 126 }
   },
+  { // Serperior
+    start: { x: 455, y: 138 },
+    end: { x: 505, y: 209 }
+  },
+  { // Serperior
+    start: { x: 147, y: 139 },
+    end: { x: 239, y: 199 }
+  },
+  { // Serperior
+    start: { x: 111, y: 214 },
+    end: { x: 232, y: 238 }
+  },
 ];
 
 function checkRestricted(x, y) {
@@ -350,7 +362,14 @@ function onReady() {
       clientIPMap[ip] = id;
     }
 
-    clients[id] = { id: id, ip: ip, ws: ws };
+    if (typeof clients[id] === 'undefined') {
+      clients[id] = { id: id, ip: ip, ws: ws };
+    } else {
+      clients[id].username = null;
+      clients[id].is_moderator = false;
+      clients[id].ws = ws;
+    }
+
     ws.send(JSON.stringify({ session_id: id, type: 'session' }));
 
     ws.on('close', function () {
@@ -358,7 +377,13 @@ function onReady() {
     });
 
     ws.on('message', function (data) {
-      var data = JSON.parse(data);
+      try {
+        var data = JSON.parse(data);
+      } catch (err) {
+        console.error('Invalid JSON: ' + err);
+        console.log(data);
+      }
+
       if (typeof clients[id] === 'undefined') {
         ws.send(JSON.stringify({ type: 'alert', message: 'Invalid session, please refresh' }));
       }
