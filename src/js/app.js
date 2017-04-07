@@ -285,7 +285,19 @@ window.App = {
         var d = $('.chat-log');
         var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
         $('<span>', { "class": 'chat-id' }).text(data.chat_id + ': ').appendTo(div);
-        $('<span>', { "class": 'chat-message' }).text(data.message).appendTo(div);
+        var message = $('<span>', { "class": 'chat-message' }).text(data.message);
+
+        var containsCoords = /(\([0-9]+)+\,(\s+)?([0-9]+\))/.exec(data.message);
+        if (containsCoords) {
+          var coords = containsCoords[0].replace('(', '').replace(')', '').split(',');
+          var x = coords[0];
+          var y = coords[1];
+
+          var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + x + ',' + y + ')' }).text(containsCoords[0]).prop('outerHTML');
+          message.html(message.html().replace(containsCoords[0], coordDiv));
+        }
+
+        message.appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
 
         if (d.children().length >= 125) {

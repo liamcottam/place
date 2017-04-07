@@ -179,8 +179,11 @@ body {
     text-align: center;
 }
 
-.bubble a:visited,a:link,a:active,a:hover {
-    color: #fff;
+.bubble {
+    a:visited, a:link, a:hover {
+        text-decoration: none;
+        color: #fff;
+    }
 }
 
 .chat-header {
