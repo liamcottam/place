@@ -3,11 +3,11 @@ var path = require('path');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-var fs = require('fs');
 var http = require('http');
 var config = require('./config');
 var WebSocket = require('ws');
 
+const fs = require('fs');
 const crypto = require('crypto');
 var saltLength = 64;
 
@@ -16,6 +16,7 @@ const Datastore = require('nedb');
 const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
 const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
+const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
 
 var numElements = config.width * config.height;
 var boardData = new Uint32Array(numElements);
@@ -90,6 +91,15 @@ var restrictedRegions = [
     start: { x: 676, y: 308 },
     end: { x: 771, y: 395 }
   },
+  { // Technoturnovers
+    start: { x: 507, y: 61 },
+    end: { x: 558, y: 124 }
+  },
+  { // Techno
+    start: { x: 665, y: 849 },
+    end: { x: 736, y: 922 }
+  },
+
 ];
 
 function checkRestricted(x, y) {
@@ -314,7 +324,23 @@ function onReady() {
   });
 
   app.get('/admin', auth.connect(basic), (req, res) => {
-    res.render('admin', { title: 'Pxls' });
+    res.render('admin', { title: 'Admin Area' });
+  });
+
+  app.get('/admin/backups', auth.connect(basic), (req, res) => {
+    fs.readdir('./backups', function (err, files) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      var backups = [];
+      files.forEach(file => {
+        backups.push(file);
+      });
+
+      res.json(backups);
+    });
   });
 
   app.post('/admin/announce', auth.connect(basic), (req, res) => {
@@ -326,7 +352,7 @@ function onReady() {
     res.sendStatus(200);
   });
 
-  app.post('/admin/remove-square', auth.connect(basic), (req, res) => {
+  app.post('/admin/delete', auth.connect(basic), (req, res) => {
     var data = req.body;
 
     var obj = {
@@ -529,10 +555,11 @@ function onReady() {
         var new_id = Math.random().toString(36).substr(2, 5);
         var old_client = clients[id];
         delete clients[id];
-        delete old_client.username;
         id = new_id;
         clients[id] = old_client;
         clients[id].id = id;
+        clients[id].username = null;
+        clients[id].is_moderator = false;
       } else if (data.type === 'cooldown' && clients[id].is_moderator) {
         var session_id = null;
         var cooldown = {
@@ -583,8 +610,10 @@ function onReady() {
 
         if (session_id !== null && !clients[session_id].is_moderator) {
           clients[session_id].ws.send(JSON.stringify(message));
-          clients[session_id].banned = true;
           banned_db.insert({ ip: clients[session_id].ip });
+
+          // Invalidate entire session
+          delete clients[session_id];
 
           ws.send(JSON.stringify({
             type: 'alert',

@@ -10,19 +10,20 @@ block content
         canvas(id='board', width=100, height=100)
 
   div(class='ui', id='ui')
-    div(class='chat')
-      div(class='chat-header')
-        a(class='user-count') 
-        a(class='chat-login') Login
-        a(class='chat-toggle') Show Chat
+    div(class='sidebar')
+      div(class='sidebar-header')
+        a(class='toggle-users') 
+        a(class='toggle-login') Login
+        a(class='toggle-chat') Chat
         
-      div(class='chat-body')
+      div(class='chat-container')
         div(class='chat-log')
-        textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
+        div(class='chat-input-container')
+          textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
 
       div(class='login-container')
         div(class='login-form')
-          div(class='login-fix')
+          form
             input(type='text', id='username')
             input(type='password', id='password')
             input(type='submit', class='login-button', value='Login')
@@ -31,7 +32,7 @@ block content
         ul(class='user-list')
           li Loading...
         div(class='move-ticker')
-          div(class='move-ticker-header') Show Ticker
+          div(class='move-ticker-header') Ticker
           div(class='move-ticker-body')
 
     div(class='cooldown-timer')

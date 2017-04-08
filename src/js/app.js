@@ -30,9 +30,17 @@ window.App = {
     reticule: $(".reticule"),
     alert: $(".message"),
     coords: $(".coords"),
-    userCount: $(".user-count"),
-    chatToggle: $(".chat-tab"),
-    chatContainer: $(".chat"),
+
+    chatContainer: $('.chat-container'),
+    usersContainer: $('.users-container'),
+    loginContainer: $('.login-container'),
+    usersToggle: $('.toggle-users'),
+
+    chatToggle: $('.toggle-chat'),
+    usersToggle: $('.toggle-users'),
+    loginToggle: $('.toggle-login'),
+
+    loginButton: $('.login-button'),
     chatInput: $('.chat-input'),
   },
   panX: 0,
@@ -53,7 +61,7 @@ window.App = {
     $('.message').hide();
     $(".cursor").hide();
     $(".cooldown-timer").hide();
-    this.elements.userCount.hide();
+    this.elements.usersToggle.hide();
 
     $.get("/boardinfo", this.initBoard.bind(this));
 
@@ -63,7 +71,7 @@ window.App = {
     this.initReticule();
     this.initAlert();
     this.initCoords();
-    this.initChat();
+    this.initSidebar();
     this.initMoveTicker();
     //Notification.requestPermission();
   },
@@ -309,16 +317,13 @@ window.App = {
         if (data.message) this.alert(data.message);
         this.onAuthentication(data)
       } else if (data.type === 'reauth') {
-        var loginToggle = $('.chat-login');
-        var loginButton = $('.login-button');
-
         if (!data.success) {
-          loginToggle.text('Login');
           this.session_key = null;
-          loginButton.prop('disabled', false);
+          this.elements.loginToggle.text('Login');
+          this.elements.loginButton.prop('disabled', false);
         } else {
-          loginToggle.text('Logout');
-          loginButton.prop('disabled', true);
+          this.elements.loginToggle.text('Logout');
+          this.elements.loginButton.prop('disabled', true);
         }
       } else if (data.type === 'users') {
         this.updateUserCount(data.users.length);
@@ -338,8 +343,8 @@ window.App = {
     }.bind(this);
   },
   updateUserCount: function (count) {
-    this.elements.userCount.fadeIn(200);
-    this.elements.userCount.text('Users: ' + count);
+    this.elements.usersToggle.fadeIn(200);
+    this.elements.usersToggle.text('Users: ' + count);
   },
   authenticateChat: function () {
     this.username = $('#username').val();
@@ -353,68 +358,62 @@ window.App = {
     }));
   },
   onAuthentication: function (data) {
-    var loginContainer = $('.login-container');
-    var loginToggle = $('.chat-login');
-    var chatBody = $('.chat-body');
-    var loginButton = $('.login-button');
-
     if (data.success) {
       this.session_key = data.session_key;
-      loginToggle.text('Logout');
-      loginContainer.hide();
-      chatBody.show();
+      this.elements.loginToggle.text('Logout');
+      this.elements.loginContainer.hide();
+      this.elements.chatContainer.show();
       if (data.is_moderator) {
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
       this.elements.palette.addClass('palette-chat');
     } else {
-      loginButton.prop('disabled', false);
+      this.elements.loginButton.prop('disabled', false);
     }
   },
-  initChat: function () {
-    var chatToggle = $('.chat-toggle');
-    var usersToggle = $('.user-count');
-    var loginToggle = $('.chat-login');
-    var loginButton = $('.login-button');
-    var chatBody = $('.chat-body');
-    var chatInput = $('.chat-input');
-    var usersContainer = $('.users-container');
-    var loginContainer = $('.login-container');
+  initSidebar: function () {
 
-    chatToggle.click(function () {
-      chatBody.toggle();
-      usersContainer.hide();
-      loginContainer.hide();
+    this.elements.chatToggle.click(function () {
+      this.elements.chatContainer.toggle();
+      this.elements.usersContainer.hide();
+      this.elements.loginContainer.hide();
 
-      if (chatBody.is(':visible')) {
+      if (this.elements.chatContainer.is(':visible')) {
         this.elements.palette.addClass('palette-chat');
       } else {
         this.elements.palette.removeClass('palette-chat');
       }
     }.bind(this));
 
-    loginButton.click(function () {
-      loginButton.prop('disabled', true);
-      this.authenticateChat();
+    this.elements.usersToggle.click(function () {
+      this.elements.chatContainer.hide();
+      this.elements.usersContainer.toggle();
+      this.elements.loginContainer.hide();
+
+      if (this.elements.usersContainer.is(':visible')) {
+        this.elements.palette.addClass('palette-chat');
+      } else {
+        this.elements.palette.removeClass('palette-chat');
+      }
     }.bind(this));
 
-    loginToggle.click(function () {
+    this.elements.loginToggle.click(function () {
       if (this.session_key != null) {
-        loginToggle.text('Login');
+        this.elements.loginToggle.text('Login');
         this.socket.send(JSON.stringify({
           type: 'logout',
           session_id: this.session_id,
           session_key: this.session_key
         }));
         this.session_key = null;
-        loginButton.prop('disabled', false);
+        this.elements.loginButton.prop('disabled', false);
         return;
       }
-      chatBody.hide();
-      usersContainer.hide();
-      loginContainer.toggle();
+      this.elements.chatContainer.hide();
+      this.elements.usersContainer.hide();
+      this.elements.loginContainer.toggle();
 
-      if (loginContainer.is(':visible')) {
+      if (this.elements.loginContainer.is(':visible')) {
         this.elements.palette.addClass('palette-chat');
 
       } else {
@@ -423,23 +422,16 @@ window.App = {
 
     }.bind(this));
 
-    usersToggle.click(function () {
-      chatBody.hide();
-      usersContainer.toggle();
-      loginContainer.hide();
-
-      if (usersContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-chat');
-      } else {
-        this.elements.palette.removeClass('palette-chat');
-      }
+    this.elements.loginButton.click(function () {
+      this.elements.loginButton.prop('disabled', true);
+      this.authenticateChat();
     }.bind(this));
 
-    chatInput.keypress(function (e) {
+    this.elements.chatInput.keypress(function (e) {
       if (e.which == 13) {
         e.preventDefault();
 
-        var data = chatInput.val();
+        var data = this.elements.chatInput.val();
         if (data === '') return;
 
         this.socket.send(JSON.stringify({
@@ -448,14 +440,14 @@ window.App = {
           message: data
         }));
 
-        chatInput.val('');
+        this.elements.chatInput.val('');
       }
     }.bind(this));
   },
   initMoveTicker: function () {
+    var userListContainer = $('.user-list');
     var moveTickerHeader = $('.move-ticker-header');
     var moveTickerBody = $('.move-ticker-body');
-    var userListContainer = $('.user-list');
 
     moveTickerHeader.click(function () {
       moveTickerBody.toggle();

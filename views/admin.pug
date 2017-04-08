@@ -1,15 +1,25 @@
-extends layout
+extends layout_admin
 
 block content
-  h1 Admin Area
-  form(method='POST', action='/admin/announce')
-    input(type='text', name='message', placeholder='Announce')
-    input(type='submit')
+  div(class='loading')
+    span Loading...
+  
+  div(class='board-container')
+    div(class='board-zoomer')
+      div(class='board-mover')
+        canvas(id='board', width=100, height=100)
+  
+  div(class='reticule', id='reticule')
+  div(class='selection')
 
-  h2 Remove Square
-  form(method='POST', action='/admin/remove-square')
-    input(type='text', name='startx', placeholder='startx')
-    input(type='text', name='starty', placeholder='starty')
-    input(type='text', name='endx', placeholder='endx')
-    input(type='text', name='endy', placeholder='endy')
-    input(type='submit')
+  div(class='coords') (0, 0)
+  div(class='bubble-container')
+
+  div(class='ui', id='ui')
+    div(class='sidebar')
+      div(class='sidebar-header')
+        a(class='toggle-tools') Tools 
+        a(class='toggle-backups') Backups
+
+      div(class='tools-container')
+      div(class='backups-container')

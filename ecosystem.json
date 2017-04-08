@@ -7,6 +7,7 @@
       "merge_logs": true,
       "ignore_watch": [
         ".git",
+        "backups",
         "node_modules",
         "public",
         "src",
@@ -15,6 +16,7 @@
         "users.nedb",
         "sessions.nedb",
         "banned.nedb",
+        "restrictions.nedb",
       ],
       "env": {
         "NODE_ENV": "production"

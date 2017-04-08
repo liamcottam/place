@@ -1,0 +1,35 @@
+@import 'style';
+
+.tools-container, .backups-container {
+  @extend .chat-container;
+  overflow: hidden;
+  overflow-y: auto;
+}
+
+.tools-container div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  cursor: pointer;
+  border: 1px solid #000;
+  
+}
+
+@keyframes border-pulsate {
+  0%   { border-color: rgba(0, 255, 0, 1); }
+  50%  { border-color: rgba(0, 255, 0, 0.5); }
+  100% { border-color: rgba(0, 255, 0, 1); }
+}
+
+.selection {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  z-index: 1;
+  border: 0.2px solid green;
+  pointer-events: none;
+  will-change: transform;
+  animation: border-pulsate 2s infinite;
+}
