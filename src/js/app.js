@@ -140,7 +140,7 @@ window.App = {
           // Up movement, up arrow or w
           this.panY += 100 / this.scale;
         } else if (evt.keyCode === 83 || evt.keyCode === 40) {
-          // Down movement, down arrow or s 
+          // Down movement, down arrow or s
           this.panY -= 100 / this.scale;
         } else if (evt.keyCode === 65 || evt.keyCode === 37) {
           // Left movement, left arrow or a
@@ -153,7 +153,7 @@ window.App = {
           this.scale /= 1.3;
           this.scale = Math.min(40, Math.max(0.7, this.scale));
         } else if (evt.keyCode === 69 || evt.keyCode === 33) {
-          // Zoom in, q key or page up
+          // Zoom in, e key or page up
           this.scale *= 1.3;
           this.scale = Math.min(40, Math.max(0.7, this.scale));
         }
@@ -260,8 +260,7 @@ window.App = {
   },
   initSocket: function () {
     var l = window.location;
-    var url = ((l.protocol === "https:") ? "wss://" : "ws://") + l.host + l.pathname + "ws";
-
+    var url = ((l.protocol === "https:") ? "wss://" : "ws://") + l.host + "/ws";
     var ws = new WebSocket(url);
     this.socket = ws;
 
@@ -301,8 +300,9 @@ window.App = {
         var moveTickerBody = $('.move-ticker-body');
         if (moveTickerBody.is(':visible')) {
           var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
-          $('<span>', { "class": 'chat-id' }).text(data.session_id + ': ').appendTo(div);
-          $('<span>', { "class": 'chat-message' }).text('x: ' + data.x + ' y: ' + data.y).appendTo(div);
+          $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
+          $('<span>').text(': ').appendTo(div);
+          $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(data.x + ', ' + data.y).appendTo(div);
           moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
           if (moveTickerBody.children().length >= 25) {
             moveTickerBody.find('.chat-line:first').remove();
@@ -320,22 +320,24 @@ window.App = {
       } else if (data.type === 'chat') {
         var d = $('.chat-log');
         var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
-        $('<span>', { "class": 'chat-id' }).text(data.chat_id + ': ').appendTo(div);
-        var message = $('<span>', { "class": 'chat-message' }).text(data.message);
+        $('<span>', { "class": 'username' }).text(data.chat_id).appendTo(div);
+        var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
 
-        var containsCoords = /(\([0-9]+)+\,(\s+)?([0-9]+\))/.exec(data.message);
-        if (containsCoords) {
-          var coords = containsCoords[0].replace('(', '').replace(')', '').split(',');
-          var x = coords[0];
-          var y = coords[1];
+        var re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
+        var m;
 
-          var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + x + ',' + y + ')' }).text(containsCoords[0]).prop('outerHTML');
-          message.html(message.html().replace(containsCoords[0], coordDiv));
-        }
+        do {
+          m = re.exec(data.message);
+          if (m) {
+            var coords = m[0].split(',');
+            if(coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
+            var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + coords[0] + ',' + coords[1] + ')' }).text(m[0]).prop('outerHTML');
+            message.html(message.html().replace(m[0], coordDiv));
+          }
+        } while (m);
 
         message.appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
-
         if (d.children().length >= 125) {
           d.find('.chat-line:first').remove();
         }
@@ -394,7 +396,7 @@ window.App = {
       if (data.is_moderator) {
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
-      this.elements.palette.addClass('palette-chat');
+      this.elements.palette.addClass('palette-sidebar');
     } else {
       this.elements.loginButton.prop('disabled', false);
     }
@@ -407,9 +409,9 @@ window.App = {
       this.elements.loginContainer.hide();
 
       if (this.elements.chatContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-chat');
+        this.elements.palette.addClass('palette-sidebar');
       } else {
-        this.elements.palette.removeClass('palette-chat');
+        this.elements.palette.removeClass('palette-sidebar');
       }
     }.bind(this));
 
@@ -419,9 +421,9 @@ window.App = {
       this.elements.loginContainer.hide();
 
       if (this.elements.usersContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-chat');
+        this.elements.palette.addClass('palette-sidebar');
       } else {
-        this.elements.palette.removeClass('palette-chat');
+        this.elements.palette.removeClass('palette-sidebar');
       }
     }.bind(this));
 
@@ -442,10 +444,10 @@ window.App = {
       this.elements.loginContainer.toggle();
 
       if (this.elements.loginContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-chat');
+        this.elements.palette.addClass('palette-sidebar');
 
       } else {
-        this.elements.palette.removeClass('palette-chat');
+        this.elements.palette.removeClass('palette-sidebar');
       }
 
     }.bind(this));

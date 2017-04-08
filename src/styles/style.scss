@@ -1,7 +1,8 @@
-$uiMargin: 16px;
-$sidebarWidth: 300px;
+$uiPadding: 8px;
 $sidebarHeaderPadding: 8px;
-$sidebarFinalWidth: $sidebarWidth + ($sidebarHeaderPadding * 2 );
+$sidebarWidth: 300px + ($sidebarHeaderPadding * 3);
+$bubbleBgColor: rgba(0, 0, 0, 0.6);
+$messageBgColor: rgba(0, 0, 0, 0.8);
 
 body {
     margin: 0;
@@ -104,7 +105,7 @@ body {
     transform: translateX(-50%);
 
     padding: 16px;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: $bubbleBgColor;
     border-radius: 16px;
     color: white;
     font-size: 24px;
@@ -126,7 +127,7 @@ body {
 .message {
     padding: 16px;
     border-radius: 16px;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: $messageBgColor;
     color: white;
     width: 50%;
     text-align: center;
@@ -144,41 +145,25 @@ body {
 }
 
 .coords {
+    margin: $uiPadding;
     position: fixed;
-    bottom: $uiMargin;
-    left: $uiMargin;
-
+    bottom: 0;
     padding: 8px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-    color: #fff;
-}
-
-.online {
-    position: fixed;
-    bottom: $uiMargin;
-    right: $uiMargin;
-
-    padding: 8px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
+    background-color: $bubbleBgColor;
     color: #fff;
 }
 
 .bubble-container {
     position: fixed;
-    top: $uiMargin;
-    left: $uiMargin;
-}
 
-.bubble {
-    margin: 8px;
-    width: 128px;
-    padding: 8px 16px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-    color: #fff;
-    text-align: center;
+    .bubble {
+        margin: $uiPadding;
+        padding: $uiPadding $uiPadding;
+        width: 128px;
+        background-color: $bubbleBgColor;
+        color: #fff;
+        text-align: center;
+    }
 }
 
 .bubble {
@@ -188,138 +173,4 @@ body {
     }
 }
 
-.sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: $sidebarWidth;
-    z-index: 999;
-}
-
-.sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    width: $sidebarWidth;
-    color: #fff;
-    background-color: rgba(0, 0, 0, 0.5);
-    padding: $sidebarHeaderPadding;
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 999;
-}
-
-.sidebar-header a {
-    cursor: pointer;
-    padding: 3px;
-    width: 100%;
-    text-align: center;
-}
-
-.chat-container, .login-container, .users-container {
-    display: none;
-    position: fixed;
-    right: 0;
-    width: $sidebarFinalWidth;
-    top: 40px;
-    bottom: 0;
-    background-color: #efeef1;
-    z-index: 999;
-}
-
-.chat-input-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: $sidebarFinalWidth;
-    height: 60px;
-    position: fixed;
-    bottom: 0;
-}
-
-.chat-input-container textarea {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    resize: none;
-    outline: none;
-    border: none;
-    border-top: 1px solid #dad8de;
-    border-left: 1px solid #dad8de;
-}
-
-.login-form {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-}
-
-.chat-log {
-    position: absolute;
-    width: 100%;
-    top: 0;
-    bottom: 60px;
-    overflow: hidden;
-    overflow-y: auto;
-}
-
-.user-list {
-    margin:0; padding:0;
-    position: absolute;
-    top: 0;
-    bottom: 25px;
-    list-style-type: none;
-    width:100%;
-    overflow: hidden;
-    overflow-y: auto;
-}
-
-.user-list-ticker {
- bottom: 231px;
-}
-
-.chat-log .chat-line, .user-list .username, .move-ticker-body {
-    font-size: 13px;
-    margin: 3px;
-}
-
-.chat-log .chat-message {
-    word-break: break-word;
-}
-
-.move-ticker {
-    width: $sidebarFinalWidth;
-    position: fixed;
-    bottom: 0;
-}
-
-.move-ticker-header {
-    border-top: 1px solid #dad8de;
-    border-bottom: 1px solid #dad8de;
-    margin-bottom: -1px;
-    text-align: center;
-    padding: 3px;
-    cursor: pointer;
-}
-
-.move-ticker-body {
-    display: none;
-    height: 200px;
-    overflow-y: auto;
-}
-
-.palette-chat {
-    width: calc(100% - 300px);
-}
-
-.online-chat {
-    right: $sidebarFinalWidth;
-}
-
-input {
-    display:block;
-}
+@import 'sidebar';

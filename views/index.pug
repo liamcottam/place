@@ -10,30 +10,7 @@ block content
         canvas(id='board', width=100, height=100)
 
   div(class='ui', id='ui')
-    div(class='sidebar')
-      div(class='sidebar-header')
-        a(class='toggle-users') 
-        a(class='toggle-login') Login
-        a(class='toggle-chat') Chat
-        
-      div(class='chat-container')
-        div(class='chat-log')
-        div(class='chat-input-container')
-          textarea(class='chat-input', type='text', placeholder='Send a message', maxlength=250)
-
-      div(class='login-container')
-        div(class='login-form')
-          form
-            input(type='text', id='username')
-            input(type='password', id='password')
-            input(type='submit', class='login-button', value='Login')
-
-      div(class='users-container')
-        ul(class='user-list')
-          li Loading...
-        div(class='move-ticker')
-          div(class='move-ticker-header') Ticker
-          div(class='move-ticker-body')
+    include includes/sidebar.pug
 
     div(class='cooldown-timer')
     div(class='message')

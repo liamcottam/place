@@ -184,6 +184,7 @@ function authenticateUser(username, password, session_id) {
     if (user) {
 
       if (checkPassword(password, user.hash, user.salt)) {
+        console.log('AUTH-SUCCESS: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].username = username;
         clients[session_id].is_moderator = user.is_moderator;
         var session_key = generateSalt();
@@ -200,7 +201,7 @@ function authenticateUser(username, password, session_id) {
 
         session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
       } else {
-        console.log('failed login attempt');
+        console.log('AUTH-FAIL: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].ws.send(JSON.stringify({
           type: 'authenticate',
           success: false,
@@ -249,6 +250,7 @@ function authenticateSession(username, session_key, session_id) {
       if (err) throw err;
 
       if (session && session.valid_until > Date.now()) {
+        console.log('REAUTH: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].username = username;
         clients[session_id].is_moderator = user.is_moderator;
 
@@ -257,6 +259,7 @@ function authenticateSession(username, session_key, session_id) {
           success: true
         }));
       } else {
+        console.log('REAUTH-FAIL: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].ws.send(JSON.stringify({
           type: 'reauth',
           success: false,
@@ -310,8 +313,8 @@ function onReady() {
       request.socket.remoteAddress ||
       request.connection.socket.remoteAddress);
 
-    if (typeof clients[ip] !== 'undefined') {
-      var diff = (clients[ip].cooldown - Date.now()) / 1000;
+    if (typeof ipClients[ip] !== 'undefined') {
+      var diff = (ipClients[ip].cooldown - Date.now()) / 1000;
       if (diff <= 0) {
         res.json(0);
       } else {
@@ -403,6 +406,7 @@ function onReady() {
 
   app.use(function (err, req, res, next) {
     res.sendStatus(err.status || 500);
+    console.log(err);
   });
 
   var userArray = [];
@@ -446,6 +450,7 @@ function onReady() {
       clients[id].ready = true;
 
       if (isBanned) {
+        console.log('BANNED USER ATTEMPTED CONNECTION: %s - (%s)', ip);
         ws.send(JSON.stringify({
           type: 'alert',
           message: 'This IP address is banned'
@@ -506,8 +511,8 @@ function onReady() {
       if (data.type === "place") {
         var x = data.x;
         var y = data.y;
-        console.log('PLACE ' + ip + ' (' + x + ',' + y + ')');
         var color = data.color;
+        console.log('PLACE: %s (%s) - %s, %s, %s', ip, id, x, y, color);
 
         if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) {
           console.log('PLACE: OOB');
@@ -522,14 +527,14 @@ function onReady() {
 
         var now = Date.now();
         if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now <= 0 || clients[id].is_moderator) {
+          var position = (y * config.height) + x;
+          if(boardData[position] === color) return;
           var diff = 0;
           if (!clients[id].is_moderator) {
             ipClients[ip].cooldown = now + (1000 * config.cooldown);
             diff = config.cooldown;
           }
 
-          var position = (y * config.height) + x;
-          data.prevColor = boardData[position];
           data.session_id = (clients[id].username !== null) ? clients[id].username : clients[id].id;
           boardData[position] = color;
           needWrite = true;
@@ -540,13 +545,12 @@ function onReady() {
           console.log('PLACE: Attempted Place Before Cooldown');
         }
       } else if (data.type === 'chat') {
-
         if (data.message === '') return;
         var now = Date.now();
         if (typeof ipClients[ip].chat_limit !== 'undefined') {
           var delta = now - ipClients[ip].chat_limit;
           if (delta < 0) {
-            console.log("CHAT-LIMIT: " + ip + ' - ' + data.message);
+            console.log("CHAT-LIMIT: %s (%s) - %s",  ip, id, data.message);
             ipClients[ip].chat_limit = now + config.cooldown_chat;
             ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limit exceeded' }));
             return;
@@ -554,7 +558,7 @@ function onReady() {
         }
 
         ipClients[ip].chat_limit = now + config.cooldown_chat;
-        console.log("CHAT: " + ip + ' - ' + data.message);
+        console.log("CHAT: %s (%s) - %s", ip, id, data.message);
         if (clients[id].username !== null) {
           data.chat_id = clients[id].username;
         } else {

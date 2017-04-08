@@ -12,14 +12,9 @@ block content
   div(class='reticule', id='reticule')
   div(class='selection')
 
+  div(class='palette')
   div(class='coords') (0, 0)
   div(class='bubble-container')
 
   div(class='ui', id='ui')
-    div(class='sidebar')
-      div(class='sidebar-header')
-        a(class='toggle-tools') Tools 
-        a(class='toggle-backups') Backups
-
-      div(class='tools-container')
-      div(class='backups-container')
+    include includes/admin_sidebar

@@ -145,5 +145,7 @@ window.AdminTools = {
 };
 
 $.get('/js/app.js', function (data) {
-  AdminTools.init();
+  $.get('/js/mod_tools.js', function(data) {
+    AdminTools.init();
+  });
 });
