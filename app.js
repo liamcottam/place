@@ -115,6 +115,10 @@ var restrictedRegions = [
     start: { x: 105, y: 618 },
     end: { x: 175, y: 713 }
   },
+  { // wutm8 - hand
+    start: { x: 588, y: 304 },
+    end: { x: 649, y: 397 }
+  },
 ];
 
 function checkRestricted(x, y) {
@@ -528,7 +532,7 @@ function onReady() {
         var now = Date.now();
         if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now <= 0 || clients[id].is_moderator) {
           var position = (y * config.height) + x;
-          if(boardData[position] === color) return;
+          if (boardData[position] === color) return;
           var diff = 0;
           if (!clients[id].is_moderator) {
             ipClients[ip].cooldown = now + (1000 * config.cooldown);
@@ -550,7 +554,7 @@ function onReady() {
         if (typeof ipClients[ip].chat_limit !== 'undefined') {
           var delta = now - ipClients[ip].chat_limit;
           if (delta < 0) {
-            console.log("CHAT-LIMIT: %s (%s) - %s",  ip, id, data.message);
+            console.log("CHAT-LIMIT: %s (%s) - %s", ip, id, data.message);
             ipClients[ip].chat_limit = now + config.cooldown_chat;
             ws.send(JSON.stringify({ type: 'alert', message: 'Chat rate limit exceeded' }));
             return;
