@@ -134,6 +134,34 @@ window.App = {
     var dragY = 0;
     var down = false;
 
+    $(document).on('keydown', function (evt) {
+      if (evt.target.nodeName === 'BODY') {
+        if (evt.keyCode === 87 || evt.keyCode === 38) {
+          // Up movement, up arrow or w
+          this.panY += 100 / this.scale;
+        } else if (evt.keyCode === 83 || evt.keyCode === 40) {
+          // Down movement, down arrow or s 
+          this.panY -= 100 / this.scale;
+        } else if (evt.keyCode === 65 || evt.keyCode === 37) {
+          // Left movement, left arrow or a
+          this.panX += 100 / this.scale;
+        } else if (evt.keyCode === 68 || evt.keyCode === 39) {
+          // Right movement, right arrow or d
+          this.panX -= 100 / this.scale;
+        } else if (evt.keyCode === 81 || evt.keyCode === 34) {
+          // Zoom out, q key or page down
+          this.scale /= 1.3;
+          this.scale = Math.min(40, Math.max(0.7, this.scale));
+        } else if (evt.keyCode === 69 || evt.keyCode === 33) {
+          // Zoom in, q key or page up
+          this.scale *= 1.3;
+          this.scale = Math.min(40, Math.max(0.7, this.scale));
+        }
+
+        this.updateTransform();
+      }
+    }.bind(this));
+
     this.elements.boardContainer.on("mousedown", function (evt) {
       this.spectate_user = null;
       this.alert(null);

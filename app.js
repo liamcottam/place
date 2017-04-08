@@ -111,6 +111,10 @@ var restrictedRegions = [
     start: { x: 507, y: 61 },
     end: { x: 558, y: 124 }
   },
+  { // Techno - King Card
+    start: { x: 105, y: 618 },
+    end: { x: 175, y: 713 }
+  },
 ];
 
 function checkRestricted(x, y) {
