@@ -277,6 +277,12 @@ function onReady() {
     file: __dirname + "/.htpasswd"
   });
 
+  app.get('/restricted', (req, res) => {
+    restricted_db.find({}, function(err, docs) {
+      res.json(docs);
+    });
+  });
+
   app.get('/admin', auth.connect(basic), (req, res) => {
     res.render('admin', { title: 'Admin Area' });
   });

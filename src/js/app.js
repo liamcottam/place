@@ -42,6 +42,8 @@ window.App = {
 
     loginButton: $('.login-button'),
     chatInput: $('.chat-input'),
+
+    restrictedToggle: $('.restricted-toggle'),
   },
   panX: 0,
   panY: 0,
@@ -51,6 +53,9 @@ window.App = {
     this.color = -1;
     this.connectionLost = false;
     this.mod_tools_requested = false;
+    this.showRestrictedAreas = false;
+    this.restrictedAreas = null;
+
     this.username = null;
     this.session_id = null;
     this.session_key = null;
@@ -74,6 +79,7 @@ window.App = {
     this.initCoords();
     this.initSidebar();
     this.initMoveTicker();
+    this.initRestrictedAreas();
     //Notification.requestPermission();
   },
   initBoard: function (data) {
@@ -96,6 +102,48 @@ window.App = {
 
     this.initSocket();
     jQuery.get("/boarddata", this.drawBoard.bind(this));
+  },
+  initRestrictedAreas: function () {
+    this.elements.restrictedToggle.click(this.restrictedAreaToggle.bind(this));
+  },
+  restrictedAreaToggle: function () {
+    this.loadRestrictedAreas();
+    this.showRestrictedAreas = !this.showRestrictedAreas;
+    if (this.showRestrictedAreas) {
+      this.elements.restrictedToggle.text('Hide Restricted Areas');
+    } else {
+      this.elements.restrictedToggle.text('Show Restricted Areas');
+    }
+  },
+  loadRestrictedAreas: function () {
+    if (this.restrictedAreas === null) {
+      $.get('/restricted', function (restrictions) {
+        this.restrictedAreas = [];
+        restrictions.forEach(function (restriction) {
+          restriction.div = $('<div>', { class: 'selection' });
+          $('.ui').append(restriction.div);
+          this.restrictedAreas.push(restriction);
+        }.bind(this));
+      }.bind(this));
+    }
+
+    this.elements.board.on("mousemove", function (evt) {
+      if (this.restrictedAreas === null) return;
+
+      this.restrictedAreas.forEach(function (restrictedArea) {
+        if (this.showRestrictedAreas) {
+          var scaleX = (restrictedArea.end.x - (restrictedArea.start.x - 1)) * App.scale;
+          var scaleY = (restrictedArea.end.y - (restrictedArea.start.y - 1)) * App.scale;
+
+          var screenPos = App.boardToScreenSpace(restrictedArea.start.x, restrictedArea.start.y);
+          restrictedArea.div.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
+          restrictedArea.div.css("width", scaleX + "px").css("height", scaleY + "px");
+          restrictedArea.div.show();
+        } else {
+          restrictedArea.div.hide();
+        }
+      }.bind(this));
+    }.bind(this));
   },
   drawBoard: function (data) {
     var ctx = this.elements.board[0].getContext("2d");

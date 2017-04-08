@@ -2,6 +2,7 @@ window.ModTools = {
   elements: {
     bubbleContainer: $('.bubble-container'),
     spamEnabledDiv: $('<div>', { class: 'bubble' }).text('Spam Enabled: false'),
+    restrictedToggle: $('<div>', { class: 'bubble restricted-toggle' }).text('Show Restricted Areas'),
     restrictionDiv: $('<div>', { class: 'bubble' }).text('Create Restriction'),
     restrictionBackDiv: $('<div>', { class: 'bubble' }).text('Exit Selection Mode'),
 
@@ -97,6 +98,10 @@ window.ModTools = {
     this.elements.bubbleContainer.empty();
     this.elements.bubbleContainer.append(this.elements.spamEnabledDiv);
     this.elements.bubbleContainer.append(this.elements.restrictionDiv);
+
+    App.elements.restrictedToggle = this.elements.restrictedToggle;
+    this.elements.bubbleContainer.append(this.elements.restrictedToggle);
+    this.elements.restrictedToggle.click(App.restrictedAreaToggle.bind(App));
   },
   initSpamBlocks: function () {
     var x = -1;
