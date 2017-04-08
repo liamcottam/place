@@ -76,7 +76,7 @@ var restrictedRegions = [
     end: { x: 647, y: 126 }
   },
   { // Serperior
-    start: { x: 455, y: 138 },
+    start: { x: 428, y: 127 },
     end: { x: 505, y: 209 }
   },
   { // Serperior
@@ -91,15 +91,26 @@ var restrictedRegions = [
     start: { x: 676, y: 308 },
     end: { x: 771, y: 395 }
   },
-  { // Technoturnovers
+  { // Technoturnovers - big brother
+    start: { x: 296, y: 23 },
+    end: { x: 344, y: 75 }
+  },
+  { // Jocaru - Zelda
+    start: { x: 673, y: 453 },
+    end: { x: 773, y: 580 }
+  },
+  { // thaajax
+    start: { x: 592, y: 930 },
+    end: { x: 678, y: 952 }
+  },
+  { // Techno - cartoon network
+    start: { x: 182, y: 635 },
+    end: { x: 237, y: 677 }
+  },
+  { // Techno
     start: { x: 507, y: 61 },
     end: { x: 558, y: 124 }
   },
-  { // Techno
-    start: { x: 665, y: 849 },
-    end: { x: 736, y: 922 }
-  },
-
 ];
 
 function checkRestricted(x, y) {
