@@ -478,7 +478,6 @@ function onReady() {
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         } else {
           if (checkRestricted(x, y, null, function (restricted) {
-            console.log(restricted);
             if (restricted) {
               console.log('PLACE: Restricted Area');
               ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
@@ -603,7 +602,7 @@ function onReady() {
         }
       } else if (data.type === 'restriction' && clients[id].is_moderator) {
         delete data.type;
-        if (data.end.x <= data.start.x || data.end.y <= data.start.x) {
+        if (data.end.x <= data.start.x || data.end.y <= data.start.y) {
           ws.send(JSON.stringify({ type: 'alert', message: 'Invalid Region Submitted' }));
         } else {
           checkIntersect(data.start, data.end, null, function (intersects) {
