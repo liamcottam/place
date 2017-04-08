@@ -9,8 +9,8 @@ window.AdminTools = {
   },
   init: function () {
     this.backupList = null;
-    this.startSelectionObj = null;
-    this.endSelectionObj = null;
+    this.startSelection = null;
+    this.endSelection = null;
 
     /*var updateTransform = App.updateTransform;
     App.updateTransform = function () {
@@ -42,11 +42,11 @@ window.AdminTools = {
   },
   initSelectionTool: function () {
     App.elements.board.on("mousemove", function (evt) {
-      if (this.startSelectionObj !== null && this.endSelectionObj !== null) {
-        var scaleX = (this.endSelectionObj.x - (this.startSelectionObj.x - 1)) * App.scale;
-        var scaleY = (this.endSelectionObj.y - (this.startSelectionObj.y - 1)) * App.scale;
+      if (this.startSelection !== null && this.endSelection !== null) {
+        var scaleX = (this.endSelection.x - (this.startSelection.x - 1)) * App.scale;
+        var scaleY = (this.endSelection.y - (this.startSelection.y - 1)) * App.scale;
 
-        var screenPos = App.boardToScreenSpace(this.startSelectionObj.x, this.startSelectionObj.y);
+        var screenPos = App.boardToScreenSpace(this.startSelection.x, this.startSelection.y);
         this.elements.selection.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
         this.elements.selection.css("width", scaleX + "px").css("height", scaleY + "px");
         this.elements.selection.show();
@@ -83,13 +83,13 @@ window.AdminTools = {
     };
 
     startPos.click(function () {
-      this.startSelectionObj = null;
+      this.startSelection = null;
       startPos.text('Start Position');
       showHideClearDelete(false);
     }.bind(this));
 
     endPos.click(function () {
-      this.endSelectionObj = null;
+      this.endSelection = null;
       endPos.text('End Position');
       showHideClearDelete(false);
     }.bind(this));
@@ -103,10 +103,10 @@ window.AdminTools = {
       $.post({
         url: '/admin/delete',
         data: {
-          startx: this.startSelectionObj.x,
-          starty: this.startSelectionObj.y,
-          endx: this.endSelectionObj.x,
-          endy: this.endSelectionObj.y,
+          startx: this.startSelection.x,
+          starty: this.startSelection.y,
+          endx: this.endSelection.x,
+          endy: this.endSelection.y,
         }
       });
       clearSelection.click();
@@ -120,15 +120,15 @@ window.AdminTools = {
       downY = evt.clientY;
     }).on('click', function (evt) {
       if (downX === evt.clientX && downY === evt.clientY) {
-        if (this.startSelectionObj === null) {
-          this.startSelectionObj = App.screenToBoardSpace(evt.clientX, evt.clientY);
-          startPos.text('Start: (' + this.startSelectionObj.x + ', ' + this.startSelectionObj.y + ')');
-        } else if (this.endSelectionObj === null) {
-          this.endSelectionObj = App.screenToBoardSpace(evt.clientX, evt.clientY);
-          endPos.text('End: (' + this.endSelectionObj.x + ', ' + this.endSelectionObj.y + ')');
+        if (this.startSelection === null) {
+          this.startSelection = App.screenToBoardSpace(evt.clientX, evt.clientY);
+          startPos.text('Start: (' + this.startSelection.x + ', ' + this.startSelection.y + ')');
+        } else if (this.endSelection === null) {
+          this.endSelection = App.screenToBoardSpace(evt.clientX, evt.clientY);
+          endPos.text('End: (' + this.endSelection.x + ', ' + this.endSelection.y + ')');
         }
 
-        showHideClearDelete((this.startSelectionObj !== null && this.endSelectionObj !== null));
+        showHideClearDelete((this.startSelection !== null && this.endSelection !== null));
       }
     }.bind(this));
   },
@@ -145,7 +145,7 @@ window.AdminTools = {
 };
 
 $.get('/js/app.js', function (data) {
-  $.get('/js/mod_tools.js', function(data) {
+  $.get('/js/mod_tools.js', function (data) {
     AdminTools.init();
   });
 });

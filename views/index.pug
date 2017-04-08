@@ -3,7 +3,7 @@ extends layout
 block content
   div(class='loading')
     span Loading...
-  div(class='reticule', id='reticule')
+  
   div(class='board-container')
     div(class='board-zoomer')
       div(class='board-mover')
@@ -24,6 +24,7 @@ block content
       div(class='bubble')
         a(href='https://www.reddit.com/r/PlaceReloaded/', target='_blank') Subreddit
 
-
+    div(class='reticule', id='reticule')
+    div(class='selection')
     div(class='coords') (0, 0)
     div(class='cursor', id='cursor')

@@ -50,6 +50,7 @@ window.App = {
   init: function () {
     this.color = -1;
     this.connectionLost = false;
+    this.mod_tools_requested = false;
     this.username = null;
     this.session_id = null;
     this.session_key = null;
@@ -330,7 +331,7 @@ window.App = {
           m = re.exec(data.message);
           if (m) {
             var coords = m[0].split(',');
-            if(coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
+            if (coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
             var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + coords[0] + ',' + coords[1] + ')' }).text(m[0]).prop('outerHTML');
             message.html(message.html().replace(m[0], coordDiv));
           }
@@ -393,7 +394,8 @@ window.App = {
       this.elements.loginToggle.text('Logout');
       this.elements.loginContainer.hide();
       this.elements.chatContainer.show();
-      if (data.is_moderator) {
+      if (data.is_moderator && !this.mod_tools_requested) {
+        this.mod_tools_requested = true;
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
       this.elements.palette.addClass('palette-sidebar');
@@ -402,7 +404,6 @@ window.App = {
     }
   },
   initSidebar: function () {
-
     this.elements.chatToggle.click(function () {
       this.elements.chatContainer.toggle();
       this.elements.usersContainer.hide();
@@ -525,6 +526,8 @@ window.App = {
     }
   },
   place: function (x, y) {
+    if (this.color === -1) return;
+
     this.socket.send(JSON.stringify({
       type: 'place',
       session_id: this.session_id,

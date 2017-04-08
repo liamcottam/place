@@ -25,110 +25,42 @@ var connectedClients = 0;
 var clients = [];
 var ipClients = [];
 
-// TODO: Move to DB/File or something
-var restrictedRegions = [
-  { // UK Flag
-    start: { x: 305, y: 970 },
-    end: { x: 345, y: 997 }
-  },
-  { // Hitler
-    start: { x: 356, y: 930 },
-    end: { x: 385, y: 969 }
-  },
-  { // Egg
-    start: { x: 394, y: 925 },
-    end: { x: 435, y: 972 }
-  },
-  { // Czech Flag
-    start: { x: 318, y: 407 },
-    end: { x: 400, y: 459 }
-  },
-  { // Czech Flag
-    start: { x: 318, y: 407 },
-    end: { x: 400, y: 459 }
-  },
-  { // Pikachu
-    start: { x: 942, y: 688 },
-    end: { x: 983, y: 729 }
-  },
-  { // Sad man
-    start: { x: 639, y: 88 },
-    end: { x: 671, y: 126 }
-  },
-  { // Mr.T
-    start: { x: 573, y: 114 },
-    end: { x: 600, y: 153 }
-  },
-  { // Squidward
-    start: { x: 601, y: 130 },
-    end: { x: 687, y: 248 }
-  },
-  { // Charmander and misc
-    start: { x: 595, y: 402 },
-    end: { x: 633, y: 466 }
-  },
-  {
-    start: { x: 470, y: 5 },
-    end: { x: 531, y: 64 }
-  },
-  {
-    start: { x: 561, y: 43 },
-    end: { x: 647, y: 126 }
-  },
-  { // Serperior
-    start: { x: 428, y: 127 },
-    end: { x: 505, y: 209 }
-  },
-  { // Serperior
-    start: { x: 147, y: 139 },
-    end: { x: 239, y: 199 }
-  },
-  { // Serperior
-    start: { x: 111, y: 214 },
-    end: { x: 232, y: 238 }
-  },
-  { // Lady
-    start: { x: 676, y: 308 },
-    end: { x: 771, y: 395 }
-  },
-  { // Technoturnovers - big brother
-    start: { x: 296, y: 23 },
-    end: { x: 344, y: 75 }
-  },
-  { // Jocaru - Zelda
-    start: { x: 673, y: 453 },
-    end: { x: 773, y: 580 }
-  },
-  { // thaajax
-    start: { x: 592, y: 930 },
-    end: { x: 678, y: 952 }
-  },
-  { // Techno - cartoon network
-    start: { x: 182, y: 635 },
-    end: { x: 237, y: 677 }
-  },
-  { // Techno
-    start: { x: 507, y: 61 },
-    end: { x: 558, y: 124 }
-  },
-  { // Techno - King Card
-    start: { x: 105, y: 618 },
-    end: { x: 175, y: 713 }
-  },
-  { // wutm8 - hand
-    start: { x: 588, y: 304 },
-    end: { x: 649, y: 397 }
-  },
-];
+function checkRestricted(x, y, username, callback) {
+  restricted_db.findOne({
+    $and: [
+      { 'start.x': { $lte: x } },
+      { 'start.y': { $lte: y } },
+      { 'end.x': { $gte: x } },
+      { 'end.y': { $gte: y } }
+    ]
+  }, function (err, restriction) {
+    callback(restriction !== null);
+  });
+}
 
-function checkRestricted(x, y) {
-  for (var i = 0; i < restrictedRegions.length; i++) {
-    if (x >= restrictedRegions[i].start.x && x <= restrictedRegions[i].end.x && y >= restrictedRegions[i].start.y && y <= restrictedRegions[i].end.y) {
-      return true;
-    }
-  }
-
-  return false;
+function checkIntersect(startPosition, endPosition, username, callback) {
+  restricted_db.findOne({
+    $or: [
+      {
+        $and: [
+          { 'start.x': { $lte: startPosition.x } },
+          { 'start.y': { $lte: startPosition.y } },
+          { 'end.x': { $gte: startPosition.x } },
+          { 'end.y': { $gte: startPosition.y } }
+        ],
+      },
+      {
+        $and: [
+          { 'start.x': { $lte: endPosition.x } },
+          { 'start.y': { $lte: endPosition.y } },
+          { 'end.x': { $gte: endPosition.x } },
+          { 'end.y': { $gte: endPosition.y } }
+        ]
+      }
+    ]
+  }, function (err, restriction) {
+    callback(restriction !== null);
+  });
 }
 
 function formatIP(ip) {
@@ -183,7 +115,7 @@ function authenticateUser(username, password, session_id) {
   }
 
   // Check if user exists
-  var user = user_db.findOne({ username: username }, function (err, user) {
+  user_db.findOne({ username: username }, function (err, user) {
     if (err) throw err;
     if (user) {
 
@@ -523,14 +455,13 @@ function onReady() {
           return;
         }
 
-        if (!clients[id].is_moderator === true && checkRestricted(x, y)) {
-          console.log('PLACE: Restricted Area');
-          ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
+        var now = Date.now();
+        if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now >= 0 && !clients[id].is_moderator) {
+          console.log('PLACE: Attempted Place Before Cooldown');
           return;
         }
 
-        var now = Date.now();
-        if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now <= 0 || clients[id].is_moderator) {
+        if (clients[id].is_moderator) {
           var position = (y * config.height) + x;
           if (boardData[position] === color) return;
           var diff = 0;
@@ -546,7 +477,29 @@ function onReady() {
           wss.broadcast(JSON.stringify(data));
           ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
         } else {
-          console.log('PLACE: Attempted Place Before Cooldown');
+          if (checkRestricted(x, y, null, function (restricted) {
+            console.log(restricted);
+            if (restricted) {
+              console.log('PLACE: Restricted Area');
+              ws.send(JSON.stringify({ type: 'alert', message: 'Area is restricted' }));
+              return;
+            } else {
+              var position = (y * config.height) + x;
+              if (boardData[position] === color) return;
+              var diff = 0;
+              if (!clients[id].is_moderator) {
+                ipClients[ip].cooldown = now + (1000 * config.cooldown);
+                diff = config.cooldown;
+              }
+
+              data.session_id = (clients[id].username !== null) ? clients[id].username : clients[id].id;
+              boardData[position] = color;
+              needWrite = true;
+              data.type = 'pixel';
+              wss.broadcast(JSON.stringify(data));
+              ws.send(JSON.stringify({ type: 'cooldown', wait: diff }));
+            }
+          }));
         }
       } else if (data.type === 'chat') {
         if (data.message === '') return;
@@ -648,6 +601,27 @@ function onReady() {
             message: 'Ban for ' + data.session_id + ' failed'
           }));
         }
+      } else if (data.type === 'restriction' && clients[id].is_moderator) {
+        delete data.type;
+        if (data.end.x <= data.start.x || data.end.y <= data.start.x) {
+          ws.send(JSON.stringify({ type: 'alert', message: 'Invalid Region Submitted' }));
+        } else {
+          checkIntersect(data.start, data.end, null, function (intersects) {
+            if (!intersects) {
+              restricted_db.insert(data);
+              ws.send(JSON.stringify({ type: 'alert', message: 'Restriction Created' }));
+            } else {
+              ws.send(JSON.stringify({ type: 'alert', message: 'The selection intersects an already created restriction' }));
+            }
+          });
+        }
+      } else {
+        console.log('WS: Unknown Request', data);
+        console.log(data);
+        ws.send(JSON.stringify({
+          type: 'alert',
+          message: 'Unknown Request'
+        }));
       }
     });
   });

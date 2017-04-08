@@ -173,4 +173,25 @@ body {
     }
 }
 
+@keyframes border-pulsate {
+    0%   { border-color: rgba(0, 0, 0, 1); }
+    20%   { border-color: rgba(255, 0, 0, 1); }
+    40%   { border-color: rgba(0, 255, 0, 1); }
+    60%   { border-color: rgba(0, 0, 255, 1); }
+    80%   { border-color: rgba(255, 255, 0, 1); }
+    100%   { border-color: rgba(255, 0, 255, 1); }
+}
+
+.selection {
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    z-index: 1;
+    border: 0.2px solid green;
+    pointer-events: none;
+    will-change: transform;
+    animation: border-pulsate 2s infinite;
+}
+
 @import 'sidebar';

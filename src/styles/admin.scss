@@ -14,21 +14,3 @@
         border: 1px solid #000;
     }
 }
-
-@keyframes border-pulsate {
-    0%   { border-color: rgba(0, 255, 0, 1); }
-    50%  { border-color: rgba(0, 255, 0, 0.5); }
-    100% { border-color: rgba(0, 255, 0, 1); }
-}
-
-.selection {
-    position: absolute;
-    top: 0;
-    left: 0;
-
-    z-index: 1;
-    border: 0.2px solid green;
-    pointer-events: none;
-    will-change: transform;
-    animation: border-pulsate 2s infinite;
-}
