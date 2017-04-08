@@ -37,6 +37,16 @@
         input {
             display: block;
         }
+
+        a {
+            color: blueviolet;
+            text-decoration: none;
+        }
+
+        // TODO: Randomise in JS from the palette
+        .username {
+            color: green;
+        }
     }
 
     .login-container {
@@ -89,18 +99,25 @@
 
     .users-container {
         .user-list {
-            margin: 3px;
+            width: $sidebarWidth;
             padding: 0;
             position: absolute;
             top: 0;
             bottom: 22px;
             list-style-type: none;
+            overflow: hidden;
+            overflow-y: auto;
+        }
+
+        ul.user-list {
+            margin: 3px;
+            width: calc(#{$sidebarWidth} - 3px);
         }
 
         .user-list-ticker {
             bottom: 222px;
             overflow: hidden;
-              overflow-y: auto;
+            overflow-y: auto;
         }
 
         .move-ticker {
