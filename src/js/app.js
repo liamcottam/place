@@ -127,7 +127,7 @@ window.App = {
       }.bind(this));
     }
 
-    this.elements.board.on("mousemove", function (evt) {
+    this.elements.board.on('mousemove', function (evt) {
       if (this.restrictedAreas === null) return;
 
       this.restrictedAreas.forEach(function (restrictedArea) {
@@ -179,9 +179,22 @@ window.App = {
     }.bind(this));
   },
   initBoardMovement: function () {
-    var dragX = 0;
-    var dragY = 0;
-    var down = false;
+    var handleMove = function (evt) {
+      this.panX += evt.dx / this.scale;
+      this.panY += evt.dy / this.scale;
+      this.updateTransform();
+    }.bind(this);
+
+    interact(this.elements.boardContainer[0]).draggable({
+      inertia: true,
+      onmove: handleMove
+    }).gesturable({
+      onmove: function (evt) {
+        this.scale *= (1 + evt.ds);
+        this.updateTransform();
+        handleMove(evt);
+      }.bind(this)
+    }).styleCursor(false);
 
     $(document).on('keydown', function (evt) {
       if (evt.target.nodeName === 'BODY') {
@@ -211,27 +224,7 @@ window.App = {
       }
     }.bind(this));
 
-    this.elements.boardContainer.on("mousedown", function (evt) {
-      this.spectate_user = null;
-      this.alert(null);
-      dragX = evt.screenX;
-      dragY = evt.screenY;
-      down = true;
-    }.bind(this)).on("mousemove", function (evt) {
-      if (!down) return;
-      var dx = evt.screenX - dragX,
-        dy = evt.screenY - dragY;
-      this.panX += dx / this.scale;
-      this.panY += dy / this.scale;
-      dragX = evt.screenX;
-      dragY = evt.screenY;
-
-      this.updateTransform()
-    }.bind(this)).on("mouseup", function (evt) {
-      down = false;
-    }.bind(this)).on("mouseout", function (evt) {
-      down = false;
-    }.bind(this)).on("wheel", function (evt) {
+    this.elements.boardContainer.on('wheel', function (evt) {
       var oldScale = this.scale;
 
       if (evt.originalEvent.deltaY > 0) {
@@ -257,40 +250,47 @@ window.App = {
   initBoardPlacement: function () {
     var downX, downY;
 
-    this.elements.board.on("mousedown", function (evt) {
+    var downFn = function (evt) {
       downX = evt.clientX;
       downY = evt.clientY;
-    }).on("click", function (evt) {
-      if (downX === evt.clientX && downY === evt.clientY && this.color !== -1 && this.cooldown === 0) {
+    };
+    var upFn = function (evt) {
+      var dx = Math.abs(downX - evt.clientX);
+      var dy = Math.abs(downY - evt.clientY);
+
+      if (dx < 5 && dy < 5 && this.color !== -1 && this.cooldown < new Date().getTime() && evt.which === 1) {
         var pos = this.screenToBoardSpace(evt.clientX, evt.clientY);
         this.place(pos.x, pos.y);
       }
-    }.bind(this)).contextmenu(function (evt) {
+    }.bind(this);
+    this.elements.board.on("pointerdown", downFn).on("mousedown", downFn).on("pointerup", upFn).on("mouseup", upFn).contextmenu(function (evt) {
       evt.preventDefault();
       this.switchColor(-1);
     }.bind(this));
   },
   initCursor: function () {
-    $(document.body).on("mousemove", function (evt) {
+    var fn = function (evt) {
       this.elements.cursor.css("transform", "translate(" + evt.clientX + "px, " + evt.clientY + "px)");
-    }.bind(this));
+    }.bind(this);
+    this.elements.boardContainer.on("pointermove", fn).on("mousemove", fn);
   },
   initReticule: function () {
-    this.elements.board.on("mousemove", function (evt) {
+    var fn = function (evt) {
       var boardPos = this.screenToBoardSpace(evt.clientX, evt.clientY);
       boardPos.x |= 0;
       boardPos.y |= 0;
 
       var screenPos = this.boardToScreenSpace(boardPos.x, boardPos.y);
       this.elements.reticule.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
-      this.elements.reticule.css("width", this.scale + "px").css("height", this.scale + "px");
+      this.elements.reticule.css("width", this.scale - 1 + "px").css("height", this.scale - 1 + "px");
 
       if (this.color === -1) {
         this.elements.reticule.hide();
       } else {
         this.elements.reticule.show();
       }
-    }.bind(this));
+    }.bind(this);
+    this.elements.board.on("pointermove", fn).on("mousemove", fn);
   },
   initCoords: function () {
     this.elements.board.on("mousemove", function (evt) {
@@ -544,6 +544,7 @@ window.App = {
       .css("width", this.width + "px")
       .css("height", this.height + "px")
       .css("transform", "translate(" + this.panX + "px, " + this.panY + "px)");
+    this.elements.reticule.css("width", this.scale + "px").css("height", this.scale + "px");
     this.elements.boardZoomer.css("transform", "scale(" + this.scale + ")");
   },
   screenToBoardSpace: function (screenX, screenY) {
@@ -634,7 +635,7 @@ window.App = {
 
 $.contextMenu({
   selector: '.username',
-  trigger: 'right',
+  trigger: 'left',
   zIndex: 1000,
   items: {
     spectate: {
