@@ -25,7 +25,7 @@ window.ModTools = {
     App.alert('Moderation tools loaded');
     setTimeout(function () {
       App.alert(null);
-    }.bind(this), 5000);
+    }.bind(this), 1500);
   },
   reset: function () {
     this.spamBlocksEnabled = false;
@@ -170,37 +170,41 @@ window.ModTools = {
   },
   initContextMenu: function () {
     $.contextMenu('destroy');
-    $.contextMenu({
-      selector: '.username',
-      trigger: 'right',
-      zIndex: 1000,
-      items: {
-        spectate: {
-          name: 'Spectate',
-          callback: function (itemKey, opt) {
-            App.spectate(opt.$trigger.text());
-          }
-        },
-        sep1: '',
-        cooldown: {
-          name: 'Cooldown',
-          callback: function (itemKey, opt) {
-            App.socket.send(JSON.stringify({
-              type: 'cooldown',
-              session_id: opt.$trigger.text(),
-            }));
-          }
-        },
-        ban: {
-          name: 'Ban',
-          callback: function (itemKey, opt) {
-            App.socket.send(JSON.stringify({
-              type: 'ban',
-              session_id: opt.$trigger.text(),
-            }));
-          }
-        },
-      }
+    var triggers = ['right', 'left'];
+    triggers.forEach(function (trigger) {
+      $.contextMenu({
+        selector: '.username',
+        trigger: trigger,
+        zIndex: 1000,
+        autoHide: true,
+        items: {
+          spectate: {
+            name: 'Spectate',
+            callback: function (itemKey, opt) {
+              App.spectate(opt.$trigger.text());
+            }
+          },
+          sep1: '',
+          cooldown: {
+            name: 'Cooldown',
+            callback: function (itemKey, opt) {
+              App.socket.send(JSON.stringify({
+                type: 'cooldown',
+                session_id: opt.$trigger.text(),
+              }));
+            }
+          },
+          ban: {
+            name: 'Ban',
+            callback: function (itemKey, opt) {
+              App.socket.send(JSON.stringify({
+                type: 'ban',
+                session_id: opt.$trigger.text(),
+              }));
+            }
+          },
+        }
+      });
     });
   }
 }

@@ -131,7 +131,6 @@ html, body {
 
 .message {
     padding: 16px;
-    border-radius: 16px;
     background-color: $messageBgColor;
     color: white;
     width: 50%;
@@ -139,7 +138,7 @@ html, body {
     z-index: 999;
 
     position: fixed;
-    bottom: 160px;
+    bottom: 120px;
     left: 50%;
     transform: translateX(-50%);
 }

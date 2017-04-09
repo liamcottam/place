@@ -103,6 +103,18 @@ function checkPassword(password, hashedPassword, salt) {
   return false;
 }
 
+function generateSession(username) {
+  var session = {
+    username: username,
+    session_key: generateSalt(),
+    valid_until: Date.now() + (1000 * 60 * 60 * 24 * 7),
+  };
+
+  session_db.update({ username: username }, session, { upsert: true });
+
+  return session;
+}
+
 function authenticateUser(username, password, session_id) {
   if (username.length === 0 || password.length === 0) {
     clients[session_id].ws.send(JSON.stringify({
@@ -123,19 +135,17 @@ function authenticateUser(username, password, session_id) {
         console.log('AUTH-SUCCESS: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].username = username;
         clients[session_id].is_moderator = user.is_moderator;
-        var session_key = generateSalt();
+        var session = generateSession(username);
 
         var response = {
           type: 'authenticate',
           success: true,
-          session_key: session_key,
+          session_key: session.session_key,
         }
         if (user.is_moderator) {
           response.is_moderator = true;
         }
         clients[session_id].ws.send(JSON.stringify(response));
-
-        session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
       } else {
         console.log('AUTH-FAIL: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].ws.send(JSON.stringify({
@@ -157,7 +167,7 @@ function authenticateUser(username, password, session_id) {
 
       var data = saltHash(password);
       clients[session_id].username = username;
-      var session_key = generateSalt();
+      var session = generateSession(username);
 
       user_db.insert({
         username: username,
@@ -169,10 +179,8 @@ function authenticateUser(username, password, session_id) {
         type: 'authenticate',
         success: true,
         message: 'Created new account with password provided',
-        session_key, session_key,
+        session_key: session.session_key,
       }));
-
-      session_db.update({ username: username }, { username: username, key: session_key, valid_until: Date.now() + (1000 * 60 * 60 * 60 * 24) }, { upsert: true });
     }
   });
 }
@@ -182,7 +190,7 @@ function authenticateSession(username, session_key, session_id) {
     if (err) throw err;
     if (!user) return;
 
-    session_db.findOne({ username: username, key: session_key }, function (err, session) {
+    session_db.findOne({ username: username, session_key: session_key }, function (err, session) {
       if (err) throw err;
 
       if (session && session.valid_until > Date.now()) {
@@ -190,10 +198,17 @@ function authenticateSession(username, session_key, session_id) {
         clients[session_id].username = username;
         clients[session_id].is_moderator = user.is_moderator;
 
-        clients[session_id].ws.send(JSON.stringify({
+        var response = {
           type: 'reauth',
-          success: true
-        }));
+          success: true,
+        }
+        if (user.is_moderator) {
+          response.is_moderator = true;
+        }
+        clients[session_id].ws.send(JSON.stringify(response));
+
+        session.valid_until = Date.now() + (1000 * 60 * 60 * 24 * 7);
+        session_db.update({ _id: session._id }, { $set: { valid_until: session.valid_until } }, {});
       } else {
         console.log('REAUTH-FAIL: %s (%s) - %s', clients[session_id].ip, session_id, username);
         clients[session_id].ws.send(JSON.stringify({
@@ -278,7 +293,7 @@ function onReady() {
   });
 
   app.get('/restricted', (req, res) => {
-    restricted_db.find({}, function(err, docs) {
+    restricted_db.find({}, function (err, docs) {
       res.json(docs);
     });
   });
@@ -541,6 +556,7 @@ function onReady() {
         clients[id].id = id;
         clients[id].username = null;
         clients[id].is_moderator = false;
+        session_db.remove({ session_key: data.session_key });
       } else if (data.type === 'cooldown' && clients[id].is_moderator) {
         var session_id = null;
         var cooldown = {

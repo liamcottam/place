@@ -18,6 +18,46 @@ function hexToRgb(hex) {
   } : null;
 }
 
+function setAuthCookie(session_key, username) {
+  var l = window.location;
+  var d = new Date();
+  d.setTime(d.getTime() + (7 * 24 * 60 * 60 * 1000));
+  var expires = "expires=" + d.toUTCString();
+  var cookie = 'session=' + session_key + ':' + username + ';' + expires + ";path=/;";
+  if (l.protocol === 'https:') {
+    cookie += 'secure;';
+  }
+
+  document.cookie = cookie;
+}
+
+
+function getAuthCookie() {
+  var name = 'session=';
+  var ca = document.cookie.split(';');
+  for (var i = 0; i < ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      var substr = c.substring(name.length, c.length).split(':');
+      return {
+        session_key: substr[0],
+        username: substr[1]
+      };
+    }
+  }
+  return null;
+}
+
+function deleteAuthCookie() {
+  var d = new Date();
+  d.setDate(d.getDate() - 1);
+  var expires = "expires=" + d;
+  document.cookie = 'session' + "=;" + expires + "; path=/";
+}
+
 window.App = {
   elements: {
     board: $("#board"),
@@ -80,6 +120,7 @@ window.App = {
     this.initSidebar();
     this.initMoveTicker();
     this.initRestrictedAreas();
+    this.initContextMenu();
     //Notification.requestPermission();
   },
   initBoard: function (data) {
@@ -95,6 +136,8 @@ window.App = {
 
     var cx = getQueryVariable("x") || this.width / 2;
     var cy = getQueryVariable("y") || this.height / 2;
+    if (cx < 0 || cx >= this.width) cx = this.width / 2;
+    if (cy < 0 || cy >= this.height) cx = this.height / 2;
     this.centerOn(cx, cy);
 
     this.scale = getQueryVariable("scale") || this.scale;
@@ -233,7 +276,7 @@ window.App = {
         this.scale *= 1.3;
       }
 
-      this.scale = Math.min(40, Math.max(0.7, this.scale));
+      this.scale = Math.min(40, Math.max(0.75, this.scale));
 
       var dx = evt.clientX - this.elements.boardContainer.width() / 2;
       var dy = evt.clientY - this.elements.boardContainer.height() / 2;
@@ -251,14 +294,16 @@ window.App = {
     var downX, downY;
 
     var downFn = function (evt) {
+      downX = evt.clientX;
+      downY = evt.clientY;
+    };
+
+    var upFn = function (evt) {
       if (this.spectate_user !== null) {
         this.spectate_user = null;
         this.alert(null);
       }
-      downX = evt.clientX;
-      downY = evt.clientY;
-    };
-    var upFn = function (evt) {
+
       var dx = Math.abs(downX - evt.clientX);
       var dy = Math.abs(downY - evt.clientY);
 
@@ -323,9 +368,19 @@ window.App = {
       $(".loading").fadeOut(500);
 
       this.elements.alert.fadeOut(200);
-      if (this.connectionLost) {
+      if (this.connectionLost && this.username !== null && this.session_key !== null) {
         jQuery.get("/boarddata", this.drawBoard.bind(this));
-        if (this.session_key != null) {
+        ws.send(JSON.stringify({
+          type: 'reauth',
+          username: this.username,
+          session_key: this.session_key
+        }));
+      } else {
+        var auth = getAuthCookie();
+        if (auth !== null) {
+          this.username = auth.username;
+          this.session_key = auth.session_key;
+
           ws.send(JSON.stringify({
             type: 'reauth',
             username: this.username,
@@ -351,15 +406,13 @@ window.App = {
         ctx.fillRect(data.x, data.y, 1, 1);
 
         var moveTickerBody = $('.move-ticker-body');
-        if (moveTickerBody.is(':visible')) {
-          var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
-          $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
-          $('<span>').text(': ').appendTo(div);
-          $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(data.x + ', ' + data.y).appendTo(div);
-          moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
-          if (moveTickerBody.children().length >= 25) {
-            moveTickerBody.find('.chat-line:first').remove();
-          }
+        var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
+        $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
+        $('<span>').text(': ').appendTo(div);
+        $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(data.x + ', ' + data.y).appendTo(div);
+        moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+        if (moveTickerBody.children().length >= 25) {
+          moveTickerBody.find('.chat-line:first').remove();
         }
 
         if (this.spectate_user !== null && this.spectate_user === data.session_id) {
@@ -400,14 +453,7 @@ window.App = {
         if (data.message) this.alert(data.message);
         this.onAuthentication(data)
       } else if (data.type === 'reauth') {
-        if (!data.success) {
-          this.session_key = null;
-          this.elements.loginToggle.text('Login');
-          this.elements.loginButton.prop('disabled', false);
-        } else {
-          this.elements.loginToggle.text('Logout');
-          this.elements.loginButton.prop('disabled', true);
-        }
+        this.onAuthentication(data);
       } else if (data.type === 'users') {
         this.updateUserCount(data.users.length);
         var userList = $('.user-list');
@@ -425,6 +471,26 @@ window.App = {
       setTimeout(this.initSocket.bind(this), 1000);
     }.bind(this);
   },
+  initContextMenu: function () {
+    // We need multiple triggers for mobile and desktop.
+    var triggers = ['right', 'left'];
+    triggers.forEach(function (trigger) {
+      $.contextMenu({
+        selector: '.username',
+        trigger: trigger,
+        zIndex: 1000,
+        autoHide: true,
+        items: {
+          spectate: {
+            name: 'Spectate',
+            callback: function (itemKey, opt) {
+              App.spectate(opt.$trigger.text());
+            }
+          }
+        }
+      });
+    });
+  },
   updateUserCount: function (count) {
     this.elements.usersToggle.fadeIn(200);
     this.elements.usersToggle.text('Users: ' + count);
@@ -435,7 +501,6 @@ window.App = {
 
     this.socket.send(JSON.stringify({
       type: 'auth',
-      session_id: this.session_id,
       username: this.username,
       password: password
     }));
@@ -445,13 +510,20 @@ window.App = {
       this.session_key = data.session_key;
       this.elements.loginToggle.text('Logout');
       this.elements.loginContainer.hide();
-      this.elements.chatContainer.show();
+      this.elements.palette.removeClass('palette-sidebar');
+
+      if (data.type !== 'reauth')
+        setAuthCookie(data.session_key, this.username);
+
       if (data.is_moderator && !this.mod_tools_requested) {
         this.mod_tools_requested = true;
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
-      this.elements.palette.addClass('palette-sidebar');
     } else {
+      this.session_key = null;
+      this.username = null;
+      deleteAuthCookie();
+      this.elements.loginToggle.text('Login');
       this.elements.loginButton.prop('disabled', false);
     }
   },
@@ -481,14 +553,16 @@ window.App = {
     }.bind(this));
 
     this.elements.loginToggle.click(function () {
-      if (this.session_key != null) {
-        this.elements.loginToggle.text('Login');
+      if (this.session_key !== null) {
         this.socket.send(JSON.stringify({
           type: 'logout',
-          session_id: this.session_id,
           session_key: this.session_key
         }));
         this.session_key = null;
+        this.username = null;
+        deleteAuthCookie();
+
+        this.elements.loginToggle.text('Login');
         this.elements.loginButton.prop('disabled', false);
         return;
       }
@@ -518,7 +592,6 @@ window.App = {
         if (data === '') return;
 
         this.socket.send(JSON.stringify({
-          session_id: this.session_id,
           type: 'chat',
           message: data
         }));
@@ -544,6 +617,20 @@ window.App = {
     });
   },
   updateTransform: function () {
+
+    if (this.panX <= -this.width / 2) {
+      this.panX = -this.width / 2;
+    }
+    if (this.panX >= this.width / 2) {
+      this.panX = this.width / 2;
+    }
+    if (this.panY <= -this.height / 2) {
+      this.panY = -this.height / 2;
+    }
+    if (this.panY >= this.height / 2) {
+      this.panY = this.height / 2;
+    }
+
     this.elements.boardMover
       .css("width", this.width + "px")
       .css("height", this.height + "px")
@@ -566,6 +653,7 @@ window.App = {
   centerOn: function (x, y) {
     this.panX = (500 - x) - 0.5;
     this.panY = (500 - y) - 0.5;
+    this.elements.coords.text("(" + x + ", " + y + ")");
     this.updateTransform();
   },
   switchColor: function (newColor) {
@@ -583,7 +671,6 @@ window.App = {
 
     this.socket.send(JSON.stringify({
       type: 'place',
-      session_id: this.session_id,
       x: x,
       y: y,
       color: this.color
@@ -626,7 +713,6 @@ window.App = {
       /*new Notification("Place Thing", {
         body: "Your next pixel is available!"
       });*/
-
     } else {
       setTimeout(this.updateTime.bind(this), 1000);
     }
@@ -634,21 +720,7 @@ window.App = {
   spectate: function (username) {
     this.alert('Spectating ' + username);
     this.spectate_user = username;
-  },
-};
-
-$.contextMenu({
-  selector: '.username',
-  trigger: 'left',
-  zIndex: 1000,
-  items: {
-    spectate: {
-      name: 'Spectate',
-      callback: function (itemKey, opt) {
-        App.spectate(opt.$trigger.text());
-      }
-    }
   }
-});
+};
 
 App.init();
