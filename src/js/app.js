@@ -251,6 +251,10 @@ window.App = {
     var downX, downY;
 
     var downFn = function (evt) {
+      if (this.spectate_user !== null) {
+        this.spectate_user = null;
+        this.alert(null);
+      }
       downX = evt.clientX;
       downY = evt.clientY;
     };
