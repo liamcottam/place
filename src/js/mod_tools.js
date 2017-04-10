@@ -50,8 +50,7 @@ window.ModTools = {
   },
   initPermaReticule: function () {
     $('.ui').append(this.elements.permaReticule);
-
-    App.elements.board.on("mousemove", function (evt) {
+    var retFn = function (evt) {
       var boardPos = App.screenToBoardSpace(evt.clientX, evt.clientY);
       boardPos.x |= 0;
       boardPos.y |= 0;
@@ -59,7 +58,10 @@ window.ModTools = {
       var screenPos = App.boardToScreenSpace(boardPos.x, boardPos.y);
       this.elements.permaReticule.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
       this.elements.permaReticule.css("width", App.scale + "px").css("height", App.scale + "px");
-    }.bind(this));
+    };
+
+    App.elements.board.on('wheel', retFn.bind(this));
+    App.elements.board.on('mousemove', retFn.bind(this));
   },
   initSelectionMode: function () {
     $('.ui').append(this.elements.selectionBorder);

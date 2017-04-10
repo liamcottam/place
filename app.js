@@ -308,19 +308,52 @@ function onReady() {
   });
 
   app.get('/admin/backups', auth.connect(basic), (req, res) => {
+    var dir = './backups/';
     fs.readdir('./backups', function (err, files) {
       if (err) {
         console.error(err);
         return;
       }
 
+      files.sort(function(a, b) {
+               return fs.statSync(dir + a).mtime.getTime() - fs.statSync(dir + b).mtime.getTime();
+           });
+
       var backups = [];
       files.forEach(file => {
         backups.push(file);
       });
 
-      res.json(backups);
+      res.json(backups.reverse());
     });
+  });
+
+  app.post('/admin/restore', auth.connect(basic), (req, res) => {
+    var startx = parseInt(req.body.startx);
+    var endx = parseInt(req.body.endx);
+    var starty = parseInt(req.body.starty);
+    var endy = parseInt(req.body.endy);
+    var filename = req.body.filename;
+
+    fs.readFile(path.join(__dirname, 'backups', filename), 'binary', function(err, data){
+      if(!err) {
+        for(var i = starty; i <= endy; i++) {
+          for(var j = startx; j <= endx; j++) {
+            var position = (i * config.height) + j;
+            boardData[position] = data.charCodeAt(position);
+          }
+        }
+
+        needWrite = true;
+        var data = { type: 'force-sync' };
+        wss.broadcast(JSON.stringify(data));
+        res.sendStatus(200);
+      }
+    });
+  });
+
+  app.get('/admin/backup/:filename', auth.connect(basic), (req, res) => {
+    res.sendFile(path.join(__dirname, 'backups', req.params.filename));
   });
 
   app.post('/admin/announce', auth.connect(basic), (req, res) => {
@@ -693,7 +726,7 @@ if (fs.existsSync(config.boardFilename)) {
       throw err;
     }
 
-    for (var i = 0, j = numElements; i < j; i++) {
+    for (var i = 0; i < numElements; i++) {
       boardData[i] = data.charCodeAt(i);
     }
 

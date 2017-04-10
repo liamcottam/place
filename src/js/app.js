@@ -144,7 +144,7 @@ window.App = {
     this.updateTransform();
 
     this.initSocket();
-    jQuery.get("/boarddata", this.drawBoard.bind(this));
+    $.get("/boarddata", this.drawBoard.bind(this));
   },
   initRestrictedAreas: function () {
     this.elements.restrictedToggle.click(this.restrictedAreaToggle.bind(this));
@@ -190,7 +190,6 @@ window.App = {
   },
   drawBoard: function (data) {
     var ctx = this.elements.board[0].getContext("2d");
-
     var imageData = new ImageData(this.width, this.height);
     var buffer = new Uint32Array(imageData.data.buffer);
     var imageDataLen = this.width * this.height;
@@ -369,25 +368,21 @@ window.App = {
       $(".loading").fadeOut(500);
 
       this.elements.alert.fadeOut(200);
-      if (this.connectionLost && this.username !== null && this.session_key !== null) {
-        jQuery.get("/boarddata", this.drawBoard.bind(this));
+
+      var auth = getAuthCookie();
+      if (auth !== null) {
+        this.username = auth.username;
+        this.session_key = auth.session_key;
+
         ws.send(JSON.stringify({
           type: 'reauth',
           username: this.username,
           session_key: this.session_key
         }));
-      } else {
-        var auth = getAuthCookie();
-        if (auth !== null) {
-          this.username = auth.username;
-          this.session_key = auth.session_key;
+      }
 
-          ws.send(JSON.stringify({
-            type: 'reauth',
-            username: this.username,
-            session_key: this.session_key
-          }));
-        }
+      if(this.connectionLost) {
+        $.get("/boarddata", this.drawBoard.bind(this));
       }
     }.bind(this);
 
