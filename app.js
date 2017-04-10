@@ -127,6 +127,14 @@ function authenticateUser(username, password, session_id) {
     return;
   }
 
+  if (!username.match(/^[a-z0-9]+$/i)) {
+    clients[session_id].ws.send(JSON.stringify({
+      type: 'authenticate',
+      success: false,
+      message: 'Invalid username'
+    }));
+  }
+
   // Check if user exists
   user_db.findOne({ username: username }, function (err, user) {
     if (err) throw err;

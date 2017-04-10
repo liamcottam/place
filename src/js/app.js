@@ -432,36 +432,48 @@ window.App = {
         } else pendingMessages = 0;
 
         // For regex tests
-        var m, re;
+        var m, re, index, replacementLength, newLength;
+        var notified = false;
+        var matches = [];
 
         // Check for username in chat indicated by '@'
-        var re = /(@[a-zA-Z0-9]+)/g;
+        var re = /(@[a-z0-9]+)/gi;
         do {
-          m = re.exec(data.message);
+          m = re.exec(message.html());
           if (m) {
             var ref = m[0].replace('@', '').toLowerCase();
-            if (data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
+            if (!notified && data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
+              notified = true;
               new Notification("Place Reloaded", {
                 body: 'Message from ' + data.chat_id + ': ' + data.message
               });
             }
 
             var usernameRef = $('<span>', { class: 'username' }).text(m[0]).prop('outerHTML');
-            message.html(message.html().replace(m[0], usernameRef));
+            matches.push({ div: usernameRef, index: m.index, length: m[0].length });
           }
         } while (m);
+
+        for (var i = matches.length - 1; i >= 0; i--) {
+          message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
+        }
+        matches = [];
 
         // Check for coordinates in message
         re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
         do {
-          m = re.exec(data.message);
+          m = re.exec(message.html());
           if (m) {
             var coords = m[0].split(',');
             if (coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
             var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + coords[0] + ',' + coords[1] + ')' }).text(m[0]).prop('outerHTML');
-            message.html(message.html().replace(m[0], coordDiv));
+            matches.push({ div: coordDiv, index: m.index, length: m[0].length });
           }
         } while (m);
+
+        for (var i = matches.length - 1; i >= 0; i--) {
+          message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
+        }
 
         if (data.is_moderator) username.addClass('moderator');
         username.appendTo(div);
