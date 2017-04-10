@@ -26,7 +26,8 @@ var clients = [];
 var ipClients = [];
 
 function checkRestricted(x, y, username, callback) {
-  restricted_db.findOne({
+  callback(false);
+  /*restricted_db.findOne({
     $and: [
       { 'start.x': { $lte: x } },
       { 'start.y': { $lte: y } },
@@ -35,7 +36,7 @@ function checkRestricted(x, y, username, callback) {
     ]
   }, function (err, restriction) {
     callback(restriction !== null);
-  });
+  });*/
 }
 
 function checkIntersect(startPosition, endPosition, username, callback) {
