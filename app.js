@@ -363,23 +363,29 @@ function onReady() {
   });
 
   var userBroadcast;
-  setInterval(function () {
+
+  var userBroadcastFn = function () {
     userBroadcast = {
       type: 'users',
       connected: connectedClients,
-      users: [],
-      moderators: []
+      moderators: [],
+      registered: [],
+      anons: [],
     };
     for (key in clients) {
       if (clients[key].username !== null) {
         if (clients[key].is_moderator) userBroadcast.moderators.push(clients[key].username);
-        else userBroadcast.users.push(clients[key].username);
+        else userBroadcast.registered.push(clients[key].username);
       } else {
-        userBroadcast.users.push(key);
+        userBroadcast.anons.push(key);
       }
     }
 
-    wss.broadcast(JSON.stringify(userBroadcast));
+    return userBroadcast;
+  }
+
+  setInterval(function () {
+    wss.broadcast(JSON.stringify(userBroadcastFn()));
   }, 3000);
 
   wss.on('connection', function connection(ws) {
@@ -426,25 +432,7 @@ function onReady() {
           banned: false
         };
 
-        if (userBroadcast === null) {
-          userBroadcast = {
-            type: 'users',
-            connected: connectedClients,
-            users: [],
-            moderators: []
-          };
-          for (key in clients) {
-            if (clients[key].username !== null) {
-              if (clients[key].is_moderator) userBroadcast.moderators.push(clients[key].username);
-              else userBroadcast.users.push(clients[key].username);
-            } else {
-              userBroadcast.users.push(key);
-            }
-          }
-
-          wss.broadcast(JSON.stringify(userBroadcast));
-        }
-
+        if (userBroadcast === null) userBroadcast = userBroadcastFn();
         ws.send(JSON.stringify({ type: 'session', session_id: id, users: userBroadcast }));
       }
     });

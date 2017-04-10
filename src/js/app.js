@@ -229,7 +229,7 @@ window.App = {
     }.bind(this);
 
     interact(this.elements.boardContainer[0]).draggable({
-      inertia: true,
+      inertia: false,
       onmove: handleMove
     }).gesturable({
       onmove: function (evt) {
@@ -361,6 +361,7 @@ window.App = {
     var url = ((l.protocol === "https:") ? "wss://" : "ws://") + l.host + "/ws";
     var ws = new WebSocket(url);
     this.socket = ws;
+    var pendingMessages = 0;
 
     ws.onopen = function () {
       $(".board-container").show();
@@ -425,15 +426,20 @@ window.App = {
         var username = $('<span>', { "class": 'username' }).text(data.chat_id);
         var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
 
+        if (this.elements.chatContainer.is(':hidden') && pendingMessages <= 125) {
+          pendingMessages++;
+          this.elements.chatToggle.text('Chat (' + pendingMessages + ')');
+        } else pendingMessages = 0;
+
         // For regex tests
         var m, re;
 
         // Check for username in chat indicated by '@'
-        var re = /(@[a-zA-Z]+)/g;
+        var re = /(@[a-zA-Z0-9]+)/g;
         do {
           m = re.exec(data.message);
           if (m) {
-            var ref = m[0].replace('@', '');
+            var ref = m[0].replace('@', '').toLowerCase();
             if (data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
               new Notification("Place Reloaded", {
                 body: 'Message from ' + data.chat_id + ': ' + data.message
@@ -485,25 +491,37 @@ window.App = {
     }.bind(this);
   },
   updateUserList: function (data) {
-    var usersList = $('.users');
+    var usersList = $('.moderators');
     var userListSection = usersList.closest('.user-list-section');
 
-    if (data.users.length !== 0) {
+    if (data.moderators.length !== 0) {
       usersList.empty();
       userListSection.show();
-      data.users.forEach(function (user) {
+      data.moderators.forEach(function (user) {
+        $('<div>', { class: 'username moderator' }).text(user).appendTo(usersList);
+      });
+    } else {
+      userListSection.hide();
+    }
+
+    usersList = $('.registered');
+    userListSection = usersList.closest('.user-list-section');
+    if (data.registered.length !== 0) {
+      usersList.empty();
+      userListSection.show();
+      data.registered.forEach(function (user) {
         $('<div>', { class: 'username' }).text(user).appendTo(usersList);
       });
     } else {
       userListSection.hide();
     }
 
-    usersList = $('.moderators');
+    usersList = $('.anons');
     userListSection = usersList.closest('.user-list-section');
-    if (data.moderators.length !== 0) {
+    if (data.anons.length !== 0) {
       usersList.empty();
       userListSection.show();
-      data.moderators.forEach(function (user) {
+      data.anons.forEach(function (user) {
         $('<div>', { class: 'username' }).text(user).appendTo(usersList);
       });
     } else {
@@ -524,6 +542,12 @@ window.App = {
             name: 'Spectate',
             callback: function (itemKey, opt) {
               App.spectate(opt.$trigger.text());
+            }
+          },
+          mention: {
+            name: 'Mention',
+            callback: function (itemKey, opt) {
+              App.mention(opt.$trigger.text());
             }
           }
         }
@@ -571,9 +595,11 @@ window.App = {
       this.elements.chatContainer.toggle();
       this.elements.usersContainer.hide();
       this.elements.loginContainer.hide();
+      this.elements.chatToggle.text('Chat');
 
       if (this.elements.chatContainer.is(':visible')) {
         this.elements.palette.addClass('palette-sidebar');
+        this.elements.chatInput.focus();
       } else {
         this.elements.palette.removeClass('palette-sidebar');
       }
@@ -611,6 +637,7 @@ window.App = {
 
       if (this.elements.loginContainer.is(':visible')) {
         this.elements.palette.addClass('palette-sidebar');
+        $('#username').focus();
 
       } else {
         this.elements.palette.removeClass('palette-sidebar');
@@ -762,6 +789,16 @@ window.App = {
     }
     this.alert('Spectating ' + username);
     this.spectate_user = username;
+  },
+  mention: function (username) {
+    this.elements.usersContainer.hide();
+    this.elements.chatContainer.show();
+    if (!username.startsWith('@')) username = '@' + username;
+    this.elements.chatInput.val(this.elements.chatInput.val() + username + ' ');
+    this.elements.chatInput.focus();
+  },
+  toURL: function () {
+    window.open(this.elements.board[0].toDataURL(), '_blank');
   }
 };
 

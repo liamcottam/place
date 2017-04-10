@@ -184,6 +184,12 @@ window.ModTools = {
               App.spectate(opt.$trigger.text());
             }
           },
+          mention: {
+            name: 'Mention',
+            callback: function (itemKey, opt) {
+              App.mention(opt.$trigger.text());
+            }
+          },
           sep1: '',
           cooldown: {
             name: 'Cooldown',
