@@ -31,7 +31,6 @@
         background-color: rgb(239, 238, 241);
         overflow: hidden;
         overflow-y: auto;
-        list-style-type: none;
         font-size: 13px;
 
         input {
@@ -46,6 +45,10 @@
         // TODO: Randomise in JS from the palette
         .username {
             color: green;
+        }
+
+        .moderator {
+            color: red;
         }
     }
 
@@ -104,14 +107,17 @@
             position: absolute;
             top: 0;
             bottom: 22px;
-            list-style-type: none;
             overflow: hidden;
             overflow-y: auto;
         }
 
-        ul.user-list {
-            margin: 3px;
-            width: calc(#{$sidebarWidth} - 3px);
+        .user-list-section {
+            padding: 3px;
+
+            .user-list-section-header {
+                font-size: 14px;
+                font-weight: bold;
+            }
         }
 
         .user-list-ticker {

@@ -121,7 +121,7 @@ window.App = {
     this.initMoveTicker();
     this.initRestrictedAreas();
     this.initContextMenu();
-    //Notification.requestPermission();
+    Notification.requestPermission();
   },
   initBoard: function (data) {
     this.width = data.width;
@@ -394,12 +394,8 @@ window.App = {
       var data = JSON.parse(msg.data);
       if (data.type === 'session') {
         this.session_id = data.session_id;
-        this.updateUserCount(data.users.length);
-        var userList = $('.user-list');
-        userList.empty();
-        data.users.forEach(function (user) {
-          $('<li>', { class: 'username' }).text(user).appendTo(userList);
-        });
+        this.updateUserCount(data.users.connected);
+        this.updateUserList(data.users);
       } else if (data.type === "pixel") {
         var ctx = this.elements.board[0].getContext("2d");
         ctx.fillStyle = this.palette[data.color];
@@ -426,12 +422,31 @@ window.App = {
       } else if (data.type === 'chat') {
         var d = $('.chat-log');
         var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
-        $('<span>', { "class": 'username' }).text(data.chat_id).appendTo(div);
+        var username = $('<span>', { "class": 'username' }).text(data.chat_id);
         var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
 
-        var re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
-        var m;
+        // For regex tests
+        var m, re;
 
+        // Check for username in chat indicated by '@'
+        var re = /(@[a-zA-Z]+)/g;
+        do {
+          m = re.exec(data.message);
+          if (m) {
+            var ref = m[0].replace('@', '');
+            if (data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
+              new Notification("Place Reloaded", {
+                body: 'Message from ' + data.chat_id + ': ' + data.message
+              });
+            }
+
+            var usernameRef = $('<span>', { class: 'username' }).text(m[0]).prop('outerHTML');
+            message.html(message.html().replace(m[0], usernameRef));
+          }
+        } while (m);
+
+        // Check for coordinates in message
+        re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
         do {
           m = re.exec(data.message);
           if (m) {
@@ -442,6 +457,8 @@ window.App = {
           }
         } while (m);
 
+        if (data.is_moderator) username.addClass('moderator');
+        username.appendTo(div);
         message.appendTo(div);
         d.scrollTop(d.prop('scrollHeight'));
         if (d.children().length >= 125) {
@@ -455,12 +472,8 @@ window.App = {
       } else if (data.type === 'reauth') {
         this.onAuthentication(data);
       } else if (data.type === 'users') {
-        this.updateUserCount(data.users.length);
-        var userList = $('.user-list');
-        userList.empty();
-        data.users.forEach(function (user) {
-          $('<li>', { class: 'username' }).text(user).appendTo(userList);
-        });
+        this.updateUserCount(data.connected);
+        this.updateUserList(data);
       }
     }.bind(this);
 
@@ -470,6 +483,32 @@ window.App = {
       this.alert('Disconnected from server... Attempting to reconnect');
       setTimeout(this.initSocket.bind(this), 1000);
     }.bind(this);
+  },
+  updateUserList: function (data) {
+    var usersList = $('.users');
+    var userListSection = usersList.closest('.user-list-section');
+
+    if (data.users.length !== 0) {
+      usersList.empty();
+      userListSection.show();
+      data.users.forEach(function (user) {
+        $('<div>', { class: 'username' }).text(user).appendTo(usersList);
+      });
+    } else {
+      userListSection.hide();
+    }
+
+    usersList = $('.moderators');
+    userListSection = usersList.closest('.user-list-section');
+    if (data.moderators.length !== 0) {
+      usersList.empty();
+      userListSection.show();
+      data.moderators.forEach(function (user) {
+        $('<div>', { class: 'username' }).text(user).appendTo(usersList);
+      });
+    } else {
+      userListSection.hide();
+    }
   },
   initContextMenu: function () {
     // We need multiple triggers for mobile and desktop.
@@ -718,6 +757,9 @@ window.App = {
     }
   },
   spectate: function (username) {
+    if (username.startsWith('@')) {
+      username = username.substr(1);
+    }
     this.alert('Spectating ' + username);
     this.spectate_user = username;
   }

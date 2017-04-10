@@ -254,10 +254,6 @@ function onReady() {
     res.send(new Buffer(boardData));
   });
 
-  app.get('/users', function (req, res, next) {
-    res.json(connectedClients);
-  });
-
   app.get('/cooldown', function (request, res, next) {
     var ip = formatIP(request.headers['x-forwarded-for'] ||
       request.connection.remoteAddress ||
@@ -366,20 +362,24 @@ function onReady() {
     console.log(err);
   });
 
-  var userArray = [];
+  var userBroadcast;
   setInterval(function () {
-    userArray = [];
+    userBroadcast = {
+      type: 'users',
+      connected: connectedClients,
+      users: [],
+      moderators: []
+    };
     for (key in clients) {
-      if (clients[key].connected) {
-        if (clients[key].username !== null) {
-          userArray.push(clients[key].username);
-        } else {
-          userArray.push(key);
-        }
+      if (clients[key].username !== null) {
+        if (clients[key].is_moderator) userBroadcast.moderators.push(clients[key].username);
+        else userBroadcast.users.push(clients[key].username);
+      } else {
+        userBroadcast.users.push(key);
       }
     }
 
-    wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
+    wss.broadcast(JSON.stringify(userBroadcast));
   }, 3000);
 
   wss.on('connection', function connection(ws) {
@@ -426,23 +426,28 @@ function onReady() {
           banned: false
         };
 
-        ws.send(JSON.stringify({ type: 'session', session_id: id, users: userArray }));
+        if (userBroadcast === null) {
+          userBroadcast = {
+            type: 'users',
+            connected: connectedClients,
+            users: [],
+            moderators: []
+          };
+          for (key in clients) {
+            if (clients[key].username !== null) {
+              if (clients[key].is_moderator) userBroadcast.moderators.push(clients[key].username);
+              else userBroadcast.users.push(clients[key].username);
+            } else {
+              userBroadcast.users.push(key);
+            }
+          }
+
+          wss.broadcast(JSON.stringify(userBroadcast));
+        }
+
+        ws.send(JSON.stringify({ type: 'session', session_id: id, users: userBroadcast }));
       }
     });
-
-    if (userArray.length === 0) {
-      for (key in clients) {
-        if (clients[key].connected) {
-          if (clients[key].username !== null) {
-            userArray.push(clients[key].username);
-          } else {
-            userArray.push(key);
-          }
-        }
-      }
-
-      wss.broadcast(JSON.stringify({ type: 'users', users: userArray }));
-    }
 
     ws.on('message', function (data) {
       if (typeof clients[id] === 'undefined') {
@@ -538,6 +543,7 @@ function onReady() {
         console.log("CHAT: %s (%s) - %s", ip, id, data.message);
         if (clients[id].username !== null) {
           data.chat_id = clients[id].username;
+          data.is_moderator = clients[id].is_moderator;
         } else {
           data.chat_id = clients[id].id;
         }
