@@ -1,6 +1,7 @@
 window.ModTools = {
   elements: {
     bubbleContainer: $('.bubble-container'),
+    screenshotDiv: $('<div>', { class: 'bubble' }).append($('<a>', { href: 'javascript:App.toURL();' }).text('Screenshot')),
     spamEnabledDiv: $('<div>', { class: 'bubble' }).text('Spam Enabled: false'),
     restrictedToggle: $('<div>', { class: 'bubble restricted-toggle' }).text('Show Restricted Areas'),
     permaReticule: $('<div>', { class: 'reticule' }).hide(),
@@ -125,6 +126,7 @@ window.ModTools = {
   },
   initBubbles: function () {
     this.elements.bubbleContainer.empty();
+    this.elements.bubbleContainer.append(this.elements.screenshotDiv);
     this.elements.bubbleContainer.append(this.elements.spamEnabledDiv);
     //this.elements.bubbleContainer.append(this.elements.restrictionDiv);
 
