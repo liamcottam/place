@@ -291,10 +291,12 @@ window.App = {
   },
   initBoardPlacement: function () {
     var downX, downY;
+    var clickTriggered = false;
 
     var downFn = function (evt) {
       downX = evt.clientX;
       downY = evt.clientY;
+      clickTriggered = false;
     };
 
     var upFn = function (evt) {
@@ -306,7 +308,8 @@ window.App = {
       var dx = Math.abs(downX - evt.clientX);
       var dy = Math.abs(downY - evt.clientY);
 
-      if (dx < 5 && dy < 5 && this.color !== -1 && this.cooldown < new Date().getTime() && evt.which === 1) {
+      if (dx < 5 && dy < 5 && this.color !== -1 && this.cooldown <= 0 && evt.which === 1 && !clickTriggered) {
+        clickTriggered = true;
         var pos = this.screenToBoardSpace(evt.clientX, evt.clientY);
         this.place(pos.x, pos.y);
       }
@@ -381,10 +384,13 @@ window.App = {
         }));
       }
 
-      if(this.connectionLost) {
+      if (this.connectionLost) {
         $.get("/boarddata", this.drawBoard.bind(this));
       }
     }.bind(this);
+
+    var moveTickerBody = $('.move-ticker-body');
+
 
     ws.onmessage = function (msg) {
       var data = JSON.parse(msg.data);
@@ -397,14 +403,14 @@ window.App = {
         ctx.fillStyle = this.palette[data.color];
         ctx.fillRect(data.x, data.y, 1, 1);
 
-        var moveTickerBody = $('.move-ticker-body');
-        var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
-        $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
-        $('<span>').text(': ').appendTo(div);
-        $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(data.x + ', ' + data.y).appendTo(div);
-        moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
-        if (moveTickerBody.children().length >= 25) {
-          moveTickerBody.find('.chat-line:first').remove();
+        if (moveTickerBody.is(':visible')) {
+          var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
+          $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
+          $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(': ' + data.x + ', ' + data.y).appendTo(div);
+          moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+          if (moveTickerBody.children().length >= 15) {
+            moveTickerBody.children().first().remove();
+          }
         }
 
         if (this.spectate_user !== null && this.spectate_user === data.session_id) {
@@ -413,7 +419,7 @@ window.App = {
       } else if (data.type === "alert") {
         this.alert(data.message);
       } else if (data.type === "cooldown") {
-        this.cooldown = Math.ceil(data.wait) + 1;
+        this.cooldown = Math.ceil(data.wait + 1);
         this.updateTime();
       } else if (data.type === 'chat') {
         var d = $('.chat-log');
