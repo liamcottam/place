@@ -1,7 +1,9 @@
 module.exports = {
+  app_title: 'Place Reloaded',
   port: 3000,
-  cooldown: 1, // in seconds
+  cooldown: 5, // in seconds
   cooldown_chat: 250,// in ms
+  connect_cooldown: true, // Apply cooldown on connect
   width: 1000,
   height: 1000,
   boardFilename: 'board.dat',

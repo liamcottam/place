@@ -103,7 +103,6 @@ window.AdminTools = {
         this.backupBuffer[i] = backup.charCodeAt(i);
       }
 
-      App.socket.onclose = null;
       App.socket.close();
       App.drawBoard(backup);
     }.bind(this));

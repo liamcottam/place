@@ -130,11 +130,11 @@ window.ModTools = {
     this.elements.bubbleContainer.empty();
     this.elements.bubbleContainer.append(this.elements.screenshotDiv);
     this.elements.bubbleContainer.append(this.elements.spamEnabledDiv);
-    //this.elements.bubbleContainer.append(this.elements.restrictionDiv);
+    this.elements.bubbleContainer.append(this.elements.restrictionDiv);
 
-    //App.elements.restrictedToggle = this.elements.restrictedToggle;
-    //this.elements.bubbleContainer.append(this.elements.restrictedToggle);
-    //this.elements.restrictedToggle.click(App.restrictedAreaToggle.bind(App));
+    App.elements.restrictedToggle = this.elements.restrictedToggle;
+    this.elements.bubbleContainer.append(this.elements.restrictedToggle);
+    this.elements.restrictedToggle.click(App.restrictedAreaToggle.bind(App));
   },
   initSpamBlocks: function () {
     var x = -1;
@@ -208,11 +208,10 @@ window.ModTools = {
     this.selectionModeEnabled = true;
   },
   restrictSelection: function (start, end) {
-    App.socket.send(JSON.stringify({
-      type: 'restriction',
+    App.socket.emit('restriction', {
       start: start,
       end: end
-    }));
+    });
 
     this.reset();
   },
@@ -242,19 +241,13 @@ window.ModTools = {
           cooldown: {
             name: 'Cooldown',
             callback: function (itemKey, opt) {
-              App.socket.send(JSON.stringify({
-                type: 'cooldown',
-                session_id: opt.$trigger.text(),
-              }));
+              App.socket.emit('cooldown', opt.$trigger.text());
             }
           },
           ban: {
             name: 'Ban',
             callback: function (itemKey, opt) {
-              App.socket.send(JSON.stringify({
-                type: 'ban',
-                session_id: opt.$trigger.text(),
-              }));
+              App.socket.emit('ban', opt.$trigger.text());
             }
           },
         }

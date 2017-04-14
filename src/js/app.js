@@ -242,24 +242,27 @@ window.App = {
       if (evt.target.nodeName === 'BODY') {
         if (evt.keyCode === 87 || evt.keyCode === 38) {
           // Up movement, up arrow or w
-          this.panY += 100 / this.scale;
+          this.panY = (evt.shiftKey) ? this.panY += 1 : this.panY += 100 / this.scale;
         } else if (evt.keyCode === 83 || evt.keyCode === 40) {
           // Down movement, down arrow or s
-          this.panY -= 100 / this.scale;
+          this.panY = (evt.shiftKey) ? this.panY -= 1 : this.panY -= 100 / this.scale;
         } else if (evt.keyCode === 65 || evt.keyCode === 37) {
           // Left movement, left arrow or a
-          this.panX += 100 / this.scale;
+          this.panX = (evt.shiftKey) ? this.panX += 1 : this.panX += 100 / this.scale;
         } else if (evt.keyCode === 68 || evt.keyCode === 39) {
           // Right movement, right arrow or d
-          this.panX -= 100 / this.scale;
+          this.panX = (evt.shiftKey) ? this.panX -= 1 : this.panX -= 100 / this.scale;
         } else if (evt.keyCode === 81 || evt.keyCode === 34) {
           // Zoom out, q key or page down
           this.scale /= 1.3;
-          this.scale = Math.min(40, Math.max(0.7, this.scale));
+          this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale));
         } else if (evt.keyCode === 69 || evt.keyCode === 33) {
           // Zoom in, e key or page up
           this.scale *= 1.3;
-          this.scale = Math.min(40, Math.max(0.7, this.scale));
+          this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale));
+        } else if (evt.keyCode === 27) {
+          // Clear color, escape key
+          this.switchColor(-1);
         }
 
         this.updateTransform();
@@ -359,17 +362,13 @@ window.App = {
     jQuery.get("/boarddata", this.drawBoard.bind(this));
   },
   initSocket: function () {
-    var l = window.location;
-    var url = ((l.protocol === "https:") ? "wss://" : "ws://") + l.host + "/ws";
-    var ws = new WebSocket(url);
-    this.socket = ws;
     var pendingMessages = 0;
 
-    ws.onopen = function () {
+    this.socket = io();
+    this.socket.on('connect', function () {
       $(".board-container").show();
       $(".ui").show();
       $(".loading").fadeOut(500);
-
       this.elements.alert.fadeOut(200);
 
       var auth = getAuthCookie();
@@ -377,131 +376,142 @@ window.App = {
         this.username = auth.username;
         this.session_key = auth.session_key;
 
-        ws.send(JSON.stringify({
-          type: 'reauth',
+        this.socket.emit('reauth', {
           username: this.username,
           session_key: this.session_key
-        }));
+        });
       }
 
       if (this.connectionLost) {
         $.get("/boarddata", this.drawBoard.bind(this));
       }
-    }.bind(this);
+    }.bind(this));
+
+    this.socket.on('disconnect', function () {
+      this.connectionLost = true;
+      this.alert('Disconnected from server... Attempting to reconnect');
+    }.bind(this));
 
     var moveTickerBody = $('.move-ticker-body');
 
+    // Events sent by websocket
+    this.socket.on('session', function (data) {
+      this.session_id = data.session_id;
+      this.updateUserCount(data.users.connected);
+      this.updateUserList(data.users);
+    }.bind(this));
 
-    ws.onmessage = function (msg) {
-      var data = JSON.parse(msg.data);
-      if (data.type === 'session') {
-        this.session_id = data.session_id;
-        this.updateUserCount(data.users.connected);
-        this.updateUserList(data.users);
-      } else if (data.type === "pixel") {
-        var ctx = this.elements.board[0].getContext("2d");
-        ctx.fillStyle = this.palette[data.color];
-        ctx.fillRect(data.x, data.y, 1, 1);
+    this.socket.on('place', function (data) {
+      var ctx = this.elements.board[0].getContext("2d");
+      ctx.fillStyle = this.palette[data.color];
+      ctx.fillRect(data.x, data.y, 1, 1);
 
-        if (moveTickerBody.is(':visible')) {
-          var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
-          $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
-          $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(': ' + data.x + ', ' + data.y).appendTo(div);
-          moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
-          if (moveTickerBody.children().length >= 15) {
-            moveTickerBody.children().first().remove();
-          }
+      if (moveTickerBody.is(':visible')) {
+        var div = $('<div>', { 'class': 'chat-line' }).appendTo(moveTickerBody);
+        $('<span>', { "class": 'username' }).text(data.session_id).appendTo(div);
+        $('<a>', { href: 'javascript:App.centerOn(' + data.x + ',' + data.y + ')' }).text(': ' + data.x + ', ' + data.y).appendTo(div);
+        moveTickerBody.scrollTop(moveTickerBody.prop('scrollHeight'));
+        if (moveTickerBody.children().length >= 15) {
+          moveTickerBody.children().first().remove();
         }
-
-        if (this.spectate_user !== null && this.spectate_user === data.session_id) {
-          this.centerOn(data.x, data.y);
-        }
-      } else if (data.type === "alert") {
-        this.alert(data.message);
-      } else if (data.type === "cooldown") {
-        this.cooldown = Math.ceil(data.wait + 1);
-        this.updateTime();
-      } else if (data.type === 'chat') {
-        var d = $('.chat-log');
-        var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
-        var username = $('<span>', { "class": 'username' }).text(data.chat_id);
-        var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
-
-        if (this.elements.chatContainer.is(':hidden') && pendingMessages <= 125) {
-          pendingMessages++;
-          this.elements.chatToggle.text('Chat (' + pendingMessages + ')');
-        } else pendingMessages = 0;
-
-        // For regex tests
-        var m, re, index, replacementLength, newLength;
-        var notified = false;
-        var matches = [];
-
-        // Check for username in chat indicated by '@'
-        var re = /(@[a-z0-9]+)/gi;
-        do {
-          m = re.exec(message.html());
-          if (m) {
-            var ref = m[0].replace('@', '').toLowerCase();
-            if (!notified && data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
-              notified = true;
-              new Notification("Place Reloaded", {
-                body: 'Message from ' + data.chat_id + ': ' + data.message
-              });
-            }
-
-            var usernameRef = $('<span>', { class: 'username' }).text(m[0]).prop('outerHTML');
-            matches.push({ div: usernameRef, index: m.index, length: m[0].length });
-          }
-        } while (m);
-
-        for (var i = matches.length - 1; i >= 0; i--) {
-          message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
-        }
-        matches = [];
-
-        // Check for coordinates in message
-        re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
-        do {
-          m = re.exec(message.html());
-          if (m) {
-            var coords = m[0].split(',');
-            if (coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
-            var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + coords[0] + ',' + coords[1] + ')' }).text(m[0]).prop('outerHTML');
-            matches.push({ div: coordDiv, index: m.index, length: m[0].length });
-          }
-        } while (m);
-
-        for (var i = matches.length - 1; i >= 0; i--) {
-          message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
-        }
-
-        if (data.is_moderator) username.addClass('moderator');
-        username.appendTo(div);
-        message.appendTo(div);
-        d.scrollTop(d.prop('scrollHeight'));
-        if (d.children().length >= 125) {
-          d.find('.chat-line:first').remove();
-        }
-      } else if (data.type === 'force-sync') {
-        this.forceSync();
-      } else if (data.type === 'authenticate') {
-        if (data.message) this.alert(data.message);
-        this.onAuthentication(data)
-      } else if (data.type === 'reauth') {
-        this.onAuthentication(data);
-      } else if (data.type === 'users') {
-        this.updateUserCount(data.connected);
-        this.updateUserList(data);
       }
-    }.bind(this);
 
-    ws.onclose = function () {
-      this.connectionLost = true;
-      ws.close();
-      this.alert('Disconnected from server... Attempting to reconnect');
-      setTimeout(this.initSocket.bind(this), 1000);
-    }.bind(this);
+      if (this.spectate_user !== null && this.spectate_user === data.session_id) {
+        this.centerOn(data.x, data.y);
+      }
+    }.bind(this));
+
+    this.socket.on('alert', function (message) {
+      this.alert(message);
+    }.bind(this));
+
+    this.socket.on('cooldown', function (wait) {
+      this.cooldown = Math.ceil(wait + 1);
+      this.updateTime();
+    }.bind(this));
+
+    this.socket.on('force-sync', function () {
+      this.forceSync();
+    }.bind(this));
+
+    this.socket.on('auth', function (data) {
+      if (data.message) this.alert(data.message);
+      this.onAuthentication(data, false);
+    }.bind(this));
+
+    this.socket.on('reauth', function (data) {
+      if (data.message) this.alert(data.message);
+      this.onAuthentication(data, true);
+    }.bind(this));
+
+    this.socket.on('users', function (data) {
+      this.updateUserCount(data.connected);
+      this.updateUserList(data);
+    }.bind(this));
+
+    this.socket.on('chat', function (data) {
+      var d = $('.chat-log');
+      var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
+      var username = $('<span>', { "class": 'username' }).text(data.chat_id);
+      var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
+
+      if (this.elements.chatContainer.is(':hidden') && pendingMessages <= 125) {
+        pendingMessages++;
+        this.elements.chatToggle.text('Chat (' + pendingMessages + ')');
+      } else pendingMessages = 0;
+
+      // For regex tests
+      var m, re, index, replacementLength, newLength;
+      var notified = false;
+      var matches = [];
+
+      // Check for username in chat indicated by '@'
+      var re = /(@[a-z0-9]+)/gi;
+      do {
+        m = re.exec(message.html());
+        if (m) {
+          var ref = m[0].replace('@', '').toLowerCase();
+          if (!notified && data.chat_id !== this.username && (ref === this.username || ref === 'everyone' || ref === 'world')) {
+            notified = true;
+            new Notification("Place Reloaded", {
+              body: 'Message from ' + data.chat_id + ': ' + data.message
+            });
+          }
+
+          var usernameRef = $('<span>', { class: 'username' }).text(m[0]).prop('outerHTML');
+          matches.push({ div: usernameRef, index: m.index, length: m[0].length });
+        }
+      } while (m);
+
+      for (var i = matches.length - 1; i >= 0; i--) {
+        message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
+      }
+      matches = [];
+
+      // Check for coordinates in message
+      re = /([0-9]+)+\,(\ +)?([0-9]+)/g;
+      do {
+        m = re.exec(message.html());
+        if (m) {
+          var coords = m[0].split(',');
+          if (coords[0] < 0 || coords[0] > this.width || coords[1] < 0 || coords[1] > this.height) continue;
+          var coordDiv = $('<a>', { class: '', href: 'javascript:App.centerOn(' + coords[0] + ',' + coords[1] + ')' }).text(m[0]).prop('outerHTML');
+          matches.push({ div: coordDiv, index: m.index, length: m[0].length });
+        }
+      } while (m);
+
+      for (var i = matches.length - 1; i >= 0; i--) {
+        message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
+      }
+
+      if (data.is_moderator) username.addClass('moderator');
+      username.appendTo(div);
+      message.appendTo(div);
+      d.scrollTop(d.prop('scrollHeight'));
+      if (d.children().length >= 125) {
+        d.find('.chat-line:first').remove();
+      }
+    }.bind(this));
   },
   updateUserList: function (data) {
     var usersList = $('.moderators');
@@ -573,22 +583,20 @@ window.App = {
   },
   authenticateChat: function () {
     this.username = $('#username').val();
-    var password = $('#password').val();
 
-    this.socket.send(JSON.stringify({
-      type: 'auth',
+    this.socket.emit('auth', {
       username: this.username,
-      password: password
-    }));
+      password: $('#password').val()
+    });
   },
-  onAuthentication: function (data) {
+  onAuthentication: function (data, reauth) {
     if (data.success) {
       this.session_key = data.session_key;
       this.elements.loginToggle.text('Logout');
       this.elements.loginContainer.hide();
       this.elements.palette.removeClass('palette-sidebar');
 
-      if (data.type !== 'reauth')
+      if (!reauth)
         setAuthCookie(data.session_key, this.username);
 
       if (data.is_moderator && !this.mod_tools_requested) {
@@ -632,13 +640,14 @@ window.App = {
 
     this.elements.loginToggle.click(function () {
       if (this.session_key !== null) {
-        this.socket.send(JSON.stringify({
+        this.socket.emit('logout', {
           type: 'logout',
           session_key: this.session_key
-        }));
+        });
         this.session_key = null;
         this.username = null;
         deleteAuthCookie();
+        location.reload();
 
         this.elements.loginToggle.text('Login');
         this.elements.loginButton.prop('disabled', false);
@@ -670,11 +679,7 @@ window.App = {
         var data = this.elements.chatInput.val();
         if (data === '') return;
 
-        this.socket.send(JSON.stringify({
-          type: 'chat',
-          message: data
-        }));
-
+        this.socket.emit('chat', data);
         this.elements.chatInput.val('');
       }
     }.bind(this));
@@ -748,12 +753,11 @@ window.App = {
   place: function (x, y) {
     if (this.color === -1) return;
 
-    this.socket.send(JSON.stringify({
-      type: 'place',
+    this.socket.emit('place', {
       x: x,
       y: y,
       color: this.color
-    }));
+    });
 
     //this.switchColor(-1);
   },
