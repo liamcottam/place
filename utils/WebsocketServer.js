@@ -41,7 +41,7 @@ function WebsocketServer(app) {
 
   io.on('connection', function (socket) {
     connected_clients++;
-    var ip = app.formatIP(socket.request.connection.remoteAddress);
+    var ip = app.formatIP(socket.handshake.headers["x-real-ip"] || socket.request.connection.remoteAddress);
     ipClients[ip] = (ipClients[ip]) ? ipClients[ip] : defaultIpSession;
 
     var id = Math.random().toString(36).substr(2, 5);
