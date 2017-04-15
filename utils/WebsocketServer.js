@@ -25,7 +25,7 @@ function WebsocketServer(app) {
     };
     for (key in clients) {
       if (clients[key].username) {
-        if (seen.indexOf(clients[key].username) === 0) {
+        if (seen.indexOf(clients[key].username) > -1) {
           userBroadcast.connected--;
           continue;
         }
@@ -33,7 +33,7 @@ function WebsocketServer(app) {
         else userBroadcast.registered.push(clients[key].username);
         seen.push(clients[key].username);
       } else {
-        if (seen.indexOf(key) === 0) {
+        if (seen.indexOf(key) > -1) {
           userBroadcast.connected--;
           continue;
         }
