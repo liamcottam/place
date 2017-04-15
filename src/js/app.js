@@ -607,6 +607,8 @@ window.App = {
       this.session_key = null;
       this.username = null;
       deleteAuthCookie();
+      if (reauth) location.reload();
+
       this.elements.loginToggle.text('Login');
       this.elements.loginButton.prop('disabled', false);
     }

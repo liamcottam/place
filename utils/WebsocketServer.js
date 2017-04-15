@@ -16,19 +16,29 @@ function WebsocketServer(app) {
   var userBroadcast = null;
 
   var userBroadcastFn = function () {
+    var seen = [];
     userBroadcast = {
-      type: 'users',
       connected: connected_clients,
       moderators: [],
       registered: [],
       anons: [],
     };
     for (key in clients) {
-      if (clients[key].username !== null) {
+      if (clients[key].username) {
+        if (seen.indexOf(clients[key].username) === 0) {
+          userBroadcast.connected--;
+          continue;
+        }
         if (clients[key].is_moderator) userBroadcast.moderators.push(clients[key].username);
         else userBroadcast.registered.push(clients[key].username);
+        seen.push(clients[key].username);
       } else {
+        if (seen.indexOf(key) === 0) {
+          userBroadcast.connected--;
+          continue;
+        }
         userBroadcast.anons.push(key);
+        seen.push(key);
       }
     }
 
@@ -36,7 +46,12 @@ function WebsocketServer(app) {
   }
 
   setInterval(function () {
-    io.emit('users', userBroadcastFn());
+    // TODO: Announce on join/disconnect
+    if (connected_clients <= 50) {
+      io.emit('users', userBroadcastFn());
+    } else {
+      io.emit('users', { connected: connected_clients });
+    }
   }, 1000);
 
   io.on('connection', function (socket) {
@@ -57,12 +72,8 @@ function WebsocketServer(app) {
         clients[id] = {
           id: id,
           ip: ip,
-          username: null,
-          is_moderator: false,
           ws: socket,
-          connected: true,
-          ready: true,
-          banned: false
+          ready: true
         };
 
         if (userBroadcast === null) userBroadcast = userBroadcastFn();
@@ -117,7 +128,7 @@ function WebsocketServer(app) {
         var position = (y * config.height) + x;
         if (app.boardData[position] === color) return;
 
-        data.session_id = (clients[id].username !== null) ? clients[id].username : clients[id].id;
+        data.session_id = (clients[id].username) ? clients[id].username : clients[id].id;
         app.boardData[position] = color;
         app.needWrite = true;
         io.emit('place', data);
@@ -159,7 +170,7 @@ function WebsocketServer(app) {
       ipClients[ip].chat_limit = now + config.cooldown_chat;
       console.log("CHAT: %s (%s) - %s", ip, id, message);
       var data = { message: message };
-      if (clients[id].username !== null) {
+      if (clients[id].username) {
         data.chat_id = clients[id].username;
         data.is_moderator = clients[id].is_moderator;
       } else {

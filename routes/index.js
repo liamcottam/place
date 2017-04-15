@@ -22,7 +22,7 @@ function Router(app) {
   });
 
   router.get('/restricted', (req, res) => {
-    if (!app.config.enable_restrictions) return res.sendStatus(200);
+    if (!app.config.enable_restrictions) return res.sendStatus(405);
 
     app.getRestrictedDb().find({}, function (err, docs) {
       res.json(docs);
