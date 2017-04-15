@@ -65,11 +65,7 @@ function Router(app) {
   });
 
   router.post('/announce', auth.connect(basic), (req, res) => {
-    var obj = {
-      type: 'alert',
-      message: req.body.message,
-    };
-    req.wss.broadcast(JSON.stringify(obj));
+    app.websocket.emit('alert', req.body.message);
     res.sendStatus(200);
   });
 
