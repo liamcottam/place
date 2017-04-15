@@ -268,7 +268,14 @@ function WebsocketServer(app) {
         return;
       }
 
-      app.createRestriction(data);
+      app.checkIntersect(data.start, data.end, function (intersects) {
+        if (!intersects) {
+          app.createRestriction(data);
+          socket.emit('alert', 'Restriction created');
+        } else {
+          socket.emit('alert', 'Restriction intersects already created restriction.');
+        }
+      });
     });
   });
 

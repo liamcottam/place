@@ -23,15 +23,9 @@ function HTTPServer(app) {
   server.use('/', indexRoutes(app));
   server.use('/admin', adminRoutes(app));
 
-  server.use(function (req, res, next) {
-    var err = new Error('Not Found');
-    err.status = 404;
-    next(err);
-  });
-
   server.use(function (err, req, res, next) {
     res.sendStatus(err.status || 500);
-    console.log(err);
+    app.log.error(err);
   });
 
   return {

@@ -1,10 +1,8 @@
-var config = require('./config');
-const HTTPServer = require('./utils/HTTPServer');
-const WebsocketServer = require('./utils/WebsocketServer');
-
 const fs = require('fs');
 const crypto = require('crypto');
-var saltLength = 64;
+const config = require('./config');
+const HTTPServer = require('./utils/HTTPServer');
+const WebsocketServer = require('./utils/WebsocketServer');
 
 // TODO: Move to proper database, mongodb perhaps
 const Datastore = require('nedb');
@@ -13,7 +11,7 @@ const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
 const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
 
-var numElements = config.width * config.height;
+const numElements = config.width * config.height;
 
 var app = {};
 app.config = config;
@@ -21,6 +19,8 @@ app.boardData = new Uint32Array(numElements);
 app.needWrite = false;
 
 app.checkRestricted = function (x, y, callback) {
+  if (!config.enable_restrictions) return callback(false);
+
   restricted_db.findOne({
     $and: [
       { 'start.x': { $lte: x } },
@@ -34,6 +34,8 @@ app.checkRestricted = function (x, y, callback) {
 }
 
 app.checkIntersect = function (startPosition, endPosition, callback) {
+  if (config.allow_restriction_intersect) return callback(false);
+
   restricted_db.findOne({
     $or: [
       {
@@ -65,9 +67,9 @@ app.formatIP = function (ip) {
 };
 
 function generateSalt() {
-  return crypto.randomBytes(Math.ceil(saltLength / 2))
+  return crypto.randomBytes(Math.ceil(config.salt_length / 2))
     .toString('hex')
-    .slice(0, saltLength);
+    .slice(0, config.salt_length);
 }
 
 function hash(password, salt) {
@@ -88,14 +90,6 @@ function saltHash(password) {
     hash: passwordData.hash,
     salt: passwordData.salt,
   };
-}
-
-function checkPassword(password, hashedPassword, salt) {
-  if (hash(password, salt).hash === hashedPassword) {
-    return true;
-  }
-
-  return false;
 }
 
 function generateSession(username) {
@@ -126,32 +120,30 @@ app.authenticateUser = function (username, password, callback) {
     if (err) throw err;
     if (user) {
 
-      if (checkPassword(password, user.hash, user.salt)) {
+      if (hash(password, user.salt).hash === user.hash) {
         var session = generateSession(username);
-        callback(null, {
+        return callback(null, {
           success: true,
           session_key: session.session_key,
           is_moderator: user.is_moderator,
         });
-      } else {
-        callback('Username or password incorrect', null);
       }
+
+      return callback('Username or password incorrect', null);
     } else {
-      if (password.length < 6) {
-        callback('Password must be at least 6 characters', null);
-        return;
-      }
+      if (password.length < 6) return callback('Password must be at least 6 characters', null);
 
       var data = saltHash(password);
       var session = generateSession(username);
 
       user_db.insert({
         username: username,
+        is_moderator: false,
         hash: data.hash,
-        salt: data.salt
+        salt: data.salt,
       });
 
-      callback(null, {
+      return callback(null, {
         success: true,
         message: 'Created new account with password provided',
         session_key: session.session_key,
@@ -196,7 +188,7 @@ app.createRestriction = function (data) {
   restricted_db.insert(data);
 }
 
-app.getRestrictedDb = function() {
+app.getRestrictedDb = function () {
   return restricted_db;
 };
 
@@ -240,7 +232,6 @@ if (!fs.existsSync('.htpasswd')) {
 if (fs.existsSync(config.boardFilename)) {
   fs.readFile(config.boardFilename, 'binary', function (err, data) {
     if (err) throw err;
-
     for (var i = 0; i < numElements; i++) {
       app.boardData[i] = data.charCodeAt(i);
     }

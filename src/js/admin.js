@@ -61,7 +61,8 @@ window.AdminTools = {
     returnToLive.click(function () {
       $.get("/boarddata", function (data) {
         App.drawBoard(data);
-        App.initSocket();
+        if (!App.socket.connected)
+          App.initSocket();
       }.bind(this));
     }.bind(this));
 
@@ -83,6 +84,8 @@ window.AdminTools = {
     }.bind(this));
   },
   loadBackups: function () {
+    this.elements.backupsContainer.empty();
+
     $.get('/admin/backups', function (data) {
       data.forEach(function (backup) {
         var div = $('<div>', { class: 'backup' }).text(backup);
@@ -90,7 +93,9 @@ window.AdminTools = {
         this.elements.backupsContainer.append(div);
       }.bind(this));
       this.backupList = data;
-
+    }.bind(this)).fail(function (res) {
+      $('<div>').text('Failed to load backups: ' + res.responseText).appendTo(this.elements.backupsContainer);
+      console.log(error);
     }.bind(this));
   },
   loadBackup: function (filename) {

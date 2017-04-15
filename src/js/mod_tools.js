@@ -14,7 +14,11 @@ window.ModTools = {
     confirmSelection: $('<div>', { class: 'bubble', text: 'Confirm Selection' }).hide(),
     selectionBorder: $('<div>', { class: 'selection' }),
   },
+  enableRestrictions: false,
   init: function () {
+    if ($('.restricted-toggle').length) {
+      this.enableRestrictions = true;
+    }
     this.reset();
 
     this.initContextMenu();
@@ -130,11 +134,13 @@ window.ModTools = {
     this.elements.bubbleContainer.empty();
     this.elements.bubbleContainer.append(this.elements.screenshotDiv);
     this.elements.bubbleContainer.append(this.elements.spamEnabledDiv);
-    this.elements.bubbleContainer.append(this.elements.restrictionDiv);
 
-    App.elements.restrictedToggle = this.elements.restrictedToggle;
-    this.elements.bubbleContainer.append(this.elements.restrictedToggle);
-    this.elements.restrictedToggle.click(App.restrictedAreaToggle.bind(App));
+    if (this.enableRestrictions) {
+      this.elements.bubbleContainer.append(this.elements.restrictionDiv);
+      App.elements.restrictedToggle = this.elements.restrictedToggle;
+      this.elements.bubbleContainer.append(this.elements.restrictedToggle);
+      this.elements.restrictedToggle.click(App.restrictedAreaToggle.bind(App));
+    }
   },
   initSpamBlocks: function () {
     var x = -1;
@@ -188,6 +194,7 @@ window.ModTools = {
     this.elements.startSelection.click(function () {
       this.elements.startSelection.text('Start Position');
       this.manualStart = true;
+      this.manualEnd = false;
       this.elements.confirmSelection.hide();
     }.bind(this));
 

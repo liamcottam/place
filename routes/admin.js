@@ -19,7 +19,10 @@ function Router(app) {
   router.get('/backups', auth.connect(basic), (req, res) => {
     var dir = path.join(__dirname, '../backups/');
     fs.readdir(dir, function (err, files) {
-      if (err) throw err;
+      if (err) {
+        console.error(err);
+        return res.status(500).send(err);
+      }
 
       files.sort(function (a, b) {
         return fs.statSync(dir + a).mtime.getTime() - fs.statSync(dir + b).mtime.getTime();

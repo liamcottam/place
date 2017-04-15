@@ -5,7 +5,7 @@ function Router(app) {
 
   /* GET home page. */
   router.get('/', function (req, res, next) {
-    res.render('index', { title: app.config.app_title });
+    res.render('index', { title: app.config.app_title, enable_restrictions: app.config.enable_restrictions });
   });
 
   /* GET board info. */
@@ -22,6 +22,8 @@ function Router(app) {
   });
 
   router.get('/restricted', (req, res) => {
+    if (!app.config.enable_restrictions) return res.sendStatus(200);
+
     app.getRestrictedDb().find({}, function (err, docs) {
       res.json(docs);
     });

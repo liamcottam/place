@@ -24,8 +24,10 @@ block content
         a(href='https://www.reddit.com/r/PlaceReloaded/', target='_blank') Subreddit
       div(class='bubble')
         a(href='javascript:App.toURL();', target='_blank') Screenshot
-      div(class='bubble')
-        div(class='restricted-toggle') Show Restricted Areas
+
+      if enable_restrictions
+        div(class='bubble')
+          div(class='restricted-toggle') Show Restricted Areas
 
     div(class='reticule', id='reticule')
     div(class='selection')
