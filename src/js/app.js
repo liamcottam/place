@@ -737,8 +737,8 @@ window.App = {
     return { x: x, y: y };
   },
   centerOn: function (x, y) {
-    this.panX = (500 - x) - 0.5;
-    this.panY = (500 - y) - 0.5;
+    this.panX = (this.width / 2 - x) - 0.5;
+    this.panY = (this.height / 2 - y) - 0.5;
     this.elements.coords.text("(" + x + ", " + y + ")");
     this.updateTransform();
   },
