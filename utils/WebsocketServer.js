@@ -151,6 +151,7 @@ function WebsocketServer(app) {
       }
 
       if (clients[id].is_moderator) {
+        data.session_id = username;
         io.emit('place', data);
         app.image.setPixelColor(jrgb, x, y);
         Pixel.addPixel(rgb, x, y, username, ip);
