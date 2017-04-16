@@ -87,7 +87,7 @@ PixelSchema.statics.addPixel = function (color, x, y, username, ip) {
 
 PixelSchema.statics.getAllPixels = function (addPixelToImage) {
   return new Promise((resolve, reject) => {
-    this.find().cursor()
+    this.find().lean().cursor()
       .on('data', function (pixel) {
         addPixelToImage(pixel);
       })

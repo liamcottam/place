@@ -89,8 +89,9 @@ window.App = {
   panY: 0,
   scale: 4,
   cooldown: 0,
+  color: null,
   init: function () {
-    this.color = -1;
+    this.color = null;
     this.connectionLost = false;
     this.mod_tools_requested = false;
     this.showRestrictedAreas = false;
@@ -127,6 +128,7 @@ window.App = {
     this.width = data.width;
     this.height = data.height;
     this.palette = data.palette;
+    this.custom_colors = data.custom_colors;
 
     this.initPalette();
 
@@ -149,14 +151,17 @@ window.App = {
   drawBoard: function () {
     this.image = new Image();
     this.image.onload = function () {
+      $(".loading").children().first().text('Loaded!');
+      $(".loading").fadeOut(500);
       var ctx = this.elements.board[0].getContext("2d");
       ctx.drawImage(this.image, 0, 0, this.width, this.height);
     }.bind(this);
 
     this.image.onerror = function () {
       $(".loading").fadeIn(500);
-      $(".loading").children().first().text('Failed to load image, please refresh');
-    };
+      $(".loading").children().first().text('Failed to load image, retrying...');
+      setTimeout(this.drawBoard.bind(this), 1000);
+    }.bind(this);
     this.image.src = '/boarddata?d=' + Date.now();
   },
   initRestrictedAreas: function () {
@@ -208,13 +213,27 @@ window.App = {
         .css("background-color", color)
         .click(function () {
           if (this.cooldown === 0) {
-            this.switchColor(idx);
+            this.switchColor(color);
           } else {
-            this.switchColor(-1);
+            this.switchColor(null);
           }
         }.bind(this))
         .appendTo(this.elements.palette);
     }.bind(this));
+
+    if (this.custom_colors) {
+      $("<input>")
+        .addClass('color-picker')
+        .appendTo(this.elements.palette);
+      $(".color-picker").spectrum({
+        showPalette: true,
+        showInput: true,
+        allowEmpty: true,
+        change: function (color) {
+          this.switchColor(color.toHexString());
+        }.bind(this)
+      });
+    }
   },
   initBoardMovement: function () {
     var handleMove = function (evt) {
@@ -258,7 +277,7 @@ window.App = {
           this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale));
         } else if (evt.keyCode === 27) {
           // Clear color, escape key
-          this.switchColor(-1);
+          this.switchColor(null);
         }
 
         this.updateTransform();
@@ -307,7 +326,7 @@ window.App = {
       var dx = Math.abs(downX - evt.clientX);
       var dy = Math.abs(downY - evt.clientY);
 
-      if (dx < 5 && dy < 5 && this.color !== -1 && this.cooldown <= 0 && evt.which === 1 && !clickTriggered) {
+      if (dx < 5 && dy < 5 && this.color !== null && this.cooldown <= 0 && evt.which === 1 && !clickTriggered) {
         clickTriggered = true;
         var pos = this.screenToBoardSpace(evt.clientX, evt.clientY);
         this.place(pos.x, pos.y);
@@ -315,7 +334,7 @@ window.App = {
     }.bind(this);
     this.elements.board.on("pointerdown", downFn).on("mousedown", downFn).on("pointerup", upFn).on("mouseup", upFn).contextmenu(function (evt) {
       evt.preventDefault();
-      this.switchColor(-1);
+      this.switchColor(null);
     }.bind(this));
   },
   initCursor: function () {
@@ -334,7 +353,7 @@ window.App = {
       this.elements.reticule.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
       this.elements.reticule.css("width", this.scale - 1 + "px").css("height", this.scale - 1 + "px");
 
-      if (this.color === -1) {
+      if (this.color === null) {
         this.elements.reticule.hide();
       } else {
         this.elements.reticule.show();
@@ -738,20 +757,20 @@ window.App = {
   switchColor: function (newColor) {
     this.color = newColor;
 
-    if (newColor === -1) {
+    if (newColor === null) {
       this.elements.cursor.hide();
     } else {
       this.elements.cursor.show();
-      this.elements.cursor.css("background-color", this.palette[newColor]);
+      this.elements.cursor.css("background-color", newColor);
     }
   },
   place: function (x, y) {
-    if (this.color === -1) return;
+    if (this.color === null) return;
 
     this.socket.emit('place', {
       x: x,
       y: y,
-      color: this.palette[this.color],
+      color: this.color,
     });
 
     //this.switchColor(-1);

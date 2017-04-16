@@ -62,6 +62,7 @@ function WebsocketServer(app) {
     connected_clients++;
     var ip = app.formatIP(socket.handshake.headers["x-real-ip"] || socket.request.connection.remoteAddress);
     ipClients[ip] = (ipClients[ip]) ? ipClients[ip] : defaultIpSession;
+    console.log('WS-CONNECTION: %s', ip);
 
     var id = Math.random().toString(36).substr(2, 5);
     clients[id] = { ready: false };
@@ -119,7 +120,7 @@ function WebsocketServer(app) {
       let username = (clients[id].username) ? clients[id].username : clients[id].id;
       console.log('PLACE: %s (%s) - %s, %s, %s', ip, username, x, y, color);
 
-      if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) {
+      if (x < 0 || x >= config.width || y < 0 || y >= config.height) {
         console.log('PLACE: OUT OF BOUNDS');
         return;
       }
@@ -130,15 +131,16 @@ function WebsocketServer(app) {
         return;
       }
 
-      if (app.config.palette.indexOf(data.color) === -1) {
-        console.log("PLACE: Attempted to place color not in palette");
-        return;
-      }
-
       let rgb = app.hexToRgb(data.color);
       if (rgb === null) {
         console.log('PLACE: Attempted to place invalid color');
-        socket.emit('alert', 'Invalid Color');
+        socket.emit('alert', 'Invalid color');
+        return;
+      }
+
+      if (!app.config.allow_custom_colors && app.config.palette.indexOf(data.color) === -1) {
+        console.log("PLACE: Attempted to place color not in palette");
+        socket.emit('alert', 'Custom colors are disabled');
         return;
       }
 
@@ -155,7 +157,7 @@ function WebsocketServer(app) {
       } else {
         app.checkRestricted(x, y, function (restricted) {
           if (!restricted) {
-            ipClients[ip].cooldown = Date.now() + (app.config.cooldown * 1000);
+            ipClients[ip].cooldown = now + (app.config.cooldown * 1000);
             socket.emit('cooldown', app.config.cooldown);
 
             data.session_id = username;

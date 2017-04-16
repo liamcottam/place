@@ -196,6 +196,10 @@ html, body {
     animation: border-pulsate 2s infinite;
 }
 
+.sp-replacer {
+    vertical-align: unset !important;
+}
+
 @media (max-width: 768px) {
     /*.sidebar {
         display: none;

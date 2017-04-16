@@ -47,7 +47,7 @@ window.ModTools = {
     this.initBubbles();
     this.initCreateRestriction();
     this.onTransform();
-    App.switchColor(-1);
+    App.switchColor(null);
 
     App.elements.palette.show();
     this.elements.permaReticule.hide();

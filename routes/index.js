@@ -6,7 +6,7 @@ function Router(app) {
 
   /* GET home page. */
   router.get('/', function (req, res, next) {
-    res.render('index', { title: app.config.app_title, enable_restrictions: app.config.enable_restrictions });
+    res.render('index', { title: app.config.app_title, enable_restrictions: app.config.enable_restrictions, allow_custom_colors: app.config.allow_custom_colors });
   });
 
   /* GET board info. */
@@ -14,11 +14,14 @@ function Router(app) {
     res.json({
       width: app.config.width,
       height: app.config.height,
+      custom_colors: app.config.allow_custom_colors,
       palette: app.config.palette,
     });
   });
 
   router.get('/boarddata', function (req, res, next) {
+    if (!app.image) return res.sendStatus(503);
+
     app.image.getBuffer(Jimp.MIME_PNG, function (err, buffer) {
       if (err) throw err;
       res.set('Expires', 0)
