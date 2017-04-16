@@ -11,6 +11,11 @@ function HTTPServer(app) {
   const server = express();
   const httpServer = require('http').createServer(server);
 
+  server.use(function (req, res, next) {
+    if (!app.image) return res.sendStatus(503);
+    next();
+  });
+
   server.set('view engine', 'pug');
   server.set('views', 'views');
 
@@ -19,7 +24,7 @@ function HTTPServer(app) {
   server.use(bodyParser.urlencoded({ extended: false }));
   server.use(cookieParser());
   server.use(express.static('public'));
-
+  
   server.use('/', indexRoutes(app));
   server.use('/admin', adminRoutes(app));
 

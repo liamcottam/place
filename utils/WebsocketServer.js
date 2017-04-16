@@ -1,4 +1,7 @@
 const socketio = require('socket.io');
+const Jimp = require('jimp');
+
+const Pixel = require('../models/pixel');
 
 function WebsocketServer(app) {
   const io = socketio(app.server.http);
@@ -10,7 +13,8 @@ function WebsocketServer(app) {
 
   var defaultIpSession = {
     cooldown: (config.connect_cooldown) ? Date.now() + (config.cooldown * 1000) : 0,
-    cooldown_chat: (config.connect_cooldown) ? Date.now() + (config.cooldown_chat * 1000) : 0
+    cooldown_chat: (config.connect_cooldown) ? Date.now() + (config.cooldown_chat * 1000) : 0,
+    connected: true
   };
 
   var userBroadcast = null;
@@ -54,10 +58,19 @@ function WebsocketServer(app) {
     }
   }, 1000);
 
+  setInterval(function () {
+    for (key in ipClients) {
+      if (!ipClients[key].connected && ipClients[key].cooldown - Date.now() <= 0) {
+        delete ipClients[key];
+      }
+    }
+  }, 1000);
+
   io.on('connection', function (socket) {
     connected_clients++;
     var ip = app.formatIP(socket.handshake.headers["x-real-ip"] || socket.request.connection.remoteAddress);
     ipClients[ip] = (ipClients[ip]) ? ipClients[ip] : defaultIpSession;
+    ipClients[ip].connected = true;
 
     var id = Math.random().toString(36).substr(2, 5);
     clients[id] = { ready: false };
@@ -80,7 +93,7 @@ function WebsocketServer(app) {
         socket.emit('session', { session_id: id, users: userBroadcast });
 
         var diff = ipClients[ip].cooldown - Date.now();
-        if (diff >= 0) {
+        if (diff > 0) {
           socket.emit('cooldown', diff / 1000);
         }
       }
@@ -88,6 +101,7 @@ function WebsocketServer(app) {
 
     socket.on('disconnect', function () {
       delete clients[id];
+      ipClients[ip].connected = false;
       connected_clients--;
     });
 
@@ -103,14 +117,15 @@ function WebsocketServer(app) {
       }
 
       if (!clients[id].ready) return;
+      if (app.image === null) return;
 
       next();
     });
 
     socket.on('place', function (data) {
-      var x = data.x;
-      var y = data.y;
-      var color = data.color;
+      let x = data.x;
+      let y = data.y;
+      let color = data.color;
       console.log('PLACE: %s (%s) - %s, %s, %s', ip, id, x, y, color);
 
       if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) {
@@ -118,41 +133,40 @@ function WebsocketServer(app) {
         return;
       }
 
-      var now = Date.now();
-      if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now >= 0 && !clients[id].is_moderator) {
-        console.log('PLACE: Attempted Place Before Cooldown');
+      let now = Date.now();
+      if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now > 0 && !clients[id].is_moderator) {
+        console.log('PLACE: Attempted place before cooldown');
         return;
       }
 
-      if (clients[id].is_moderator) {
-        var position = (y * config.height) + x;
-        if (app.boardData[position] === color) return;
-
-        data.session_id = (clients[id].username) ? clients[id].username : clients[id].id;
-        app.boardData[position] = color;
-        app.needWrite = true;
-        io.emit('place', data);
-      } else {
-        if (app.checkRestricted(x, y, function (restricted) {
-          if (restricted) {
-            console.log('PLACE: Restricted Area');
-            socket.emit('alert', 'Area is restricted.');
-            return;
-          } else {
-            var position = (y * config.height) + x;
-            if (app.boardData[position] === color) return;
-
-            ipClients[ip].cooldown = now + (1000 * config.cooldown);
-            var diff = config.cooldown;
-
-            data.session_id = (clients[id].username !== null) ? clients[id].username : clients[id].id;
-            app.boardData[position] = color;
-            app.needWrite = true;
-            io.emit('place', data);
-            socket.emit('cooldown', diff);
-          }
-        }));
+      if (app.config.palette.indexOf(data.color) === -1) {
+        console.log("PLACE: Attempted to place color not in palette");
+        return;
       }
+
+      let rgb = app.hexToRgb(data.color);
+      if (rgb === null) {
+        console.log('PLACE: Attempted to place invalid color');
+        socket.emit('alert', 'Invalid Color');
+        return;
+      }
+
+      let jrgb = Jimp.rgbaToInt(rgb.r, rgb.g, rgb.b, 255);
+      if (app.image.getPixelColor(x, y) === jrgb) {
+        console.log('PLACE: Prevented place for same colour');
+        return;
+      }
+
+      if (!clients[id].is_moderator) {
+        ipClients[ip].cooldown = Date.now() + (app.config.cooldown * 1000);
+        socket.emit('cooldown', app.config.cooldown);
+      }
+
+      let username = (clients[id].username) ? clients[id].username : clients[id].id;
+      data.session_id = username;
+      io.emit('place', data);
+      app.image.setPixelColor(jrgb, x, y);
+      Pixel.addPixel(rgb, x, y, username, ip);
     });
 
     socket.on('chat', function (message) {
@@ -264,6 +278,7 @@ function WebsocketServer(app) {
         clients[client_id].ws.emit('alert', 'You have been banned.');
         app.banIP(clients[session_id].ip);
         delete clients[client_id];
+        clients[client_id] = { banned: true };
         socket.emit('alert', 'Ban for ' + session_id + ' succeeded');
       } else {
         socket.emit('alert', 'Ban for ' + session_id + ' failed');

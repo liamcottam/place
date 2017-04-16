@@ -1,4 +1,5 @@
 const express = require('express');
+const Jimp = require('jimp');
 
 function Router(app) {
   let router = express.Router();
@@ -18,7 +19,14 @@ function Router(app) {
   });
 
   router.get('/boarddata', function (req, res, next) {
-    res.send(new Buffer(app.boardData));
+    app.image.getBuffer(Jimp.MIME_PNG, function (err, buffer) {
+      if (err) throw err;
+      res.set('Expires', 0)
+        .set('Pragma', 'no-cache')
+        .set('Cache-Control', 'no-cache, no-store, must-revalidate')
+        .set('Content-Type', 'image/png')
+        .send(buffer);
+    });
   });
 
   router.get('/restricted', (req, res) => {

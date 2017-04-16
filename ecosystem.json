@@ -11,12 +11,10 @@
         "node_modules",
         "public",
         "src",
-        "board.dat",
-        "board.tmp.dat",
         "users.nedb",
         "sessions.nedb",
         "banned.nedb",
-        "restrictions.nedb",
+        "restrictions.nedb"
       ],
       "env": {
         "NODE_ENV": "production"

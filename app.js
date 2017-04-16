@@ -1,6 +1,7 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const config = require('./config');
+const ImageUtils = require('./utils/ImageUtils');
 const HTTPServer = require('./utils/HTTPServer');
 const WebsocketServer = require('./utils/WebsocketServer');
 
@@ -11,12 +12,17 @@ const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
 const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
 
-const numElements = config.width * config.height;
+const mongoose = require('mongoose');
+try {
+  mongoose.connect(config.database);
+} catch (err) {
+  console.error(err);
+  console.error('Failed to connect to database, please check the above error');
+  process.exit(1);
+}
 
 var app = {};
 app.config = config;
-app.boardData = new Uint32Array(numElements);
-app.needWrite = false;
 
 app.checkRestricted = function (x, y, callback) {
   if (!config.enable_restrictions) return callback(false);
@@ -31,7 +37,7 @@ app.checkRestricted = function (x, y, callback) {
   }, function (err, restriction) {
     callback(restriction !== null);
   });
-}
+};
 
 app.checkIntersect = function (startPosition, endPosition, callback) {
   if (config.allow_restriction_intersect) return callback(false);
@@ -58,7 +64,7 @@ app.checkIntersect = function (startPosition, endPosition, callback) {
   }, function (err, restriction) {
     callback(restriction !== null);
   });
-}
+};
 
 app.formatIP = function (ip) {
   ip = ip.split(',')[0];
@@ -70,7 +76,7 @@ function generateSalt() {
   return crypto.randomBytes(Math.ceil(config.salt_length / 2))
     .toString('hex')
     .slice(0, config.salt_length);
-}
+};
 
 function hash(password, salt) {
   var hash = crypto.createHmac('sha512', salt);
@@ -80,7 +86,7 @@ function hash(password, salt) {
     hash: value,
     salt: salt,
   };
-}
+};
 
 function saltHash(password) {
   var salt = generateSalt();
@@ -90,7 +96,7 @@ function saltHash(password) {
     hash: passwordData.hash,
     salt: passwordData.salt,
   };
-}
+};
 
 function generateSession(username) {
   var session = {
@@ -102,7 +108,7 @@ function generateSession(username) {
   session_db.update({ username: username }, session, { upsert: true });
 
   return session;
-}
+};
 
 app.authenticateUser = function (username, password, callback) {
   if (username.length === 0 || password.length === 0) {
@@ -150,7 +156,7 @@ app.authenticateUser = function (username, password, callback) {
       });
     }
   });
-}
+};
 
 app.authenticateSession = function (username, session_key, callback) {
   user_db.findOne({ username: username }, function (err, user) {
@@ -186,7 +192,7 @@ app.banIP = function (ip) {
 
 app.createRestriction = function (data) {
   restricted_db.insert(data);
-}
+};
 
 app.getRestrictedDb = function () {
   return restricted_db;
@@ -200,55 +206,18 @@ app.checkBanned = function (ip, callback) {
   });
 };
 
-function onReady() {
-  app.server = new HTTPServer(app);
-  app.websocket = new WebsocketServer(app);
-  app.server.http.listen(config.port, function () {
-    console.log('Listening on port %d', app.server.http.address().port);
-  });
-}
+app.hexToRgb = function (hex) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+};
 
-function synchroniseFile() {
-  if (!app.needWrite) return setTimeout(synchroniseFile, 100);
-  app.needWrite = false;
-
-  fs.writeFile(config.boardFilenameTemp, new Buffer(app.boardData), function (err) {
-    if (err) throw err;
-
-    fs.rename(config.boardFilenameTemp, config.boardFilename, function (err) {
-      if (err) throw err;
-      setTimeout(synchroniseFile, 100);
-    });
-  });
-}
-
-if (!fs.existsSync('.htpasswd')) {
-  fs.writeFile('.htpasswd', 'user:user', function (err) {
-    if (err) throw err;
-    console.log('Created default user with username and password user');
-  })
-}
-
-if (fs.existsSync(config.boardFilename)) {
-  fs.readFile(config.boardFilename, 'binary', function (err, data) {
-    if (err) throw err;
-    for (var i = 0; i < numElements; i++) {
-      app.boardData[i] = data.charCodeAt(i);
-    }
-
-    synchroniseFile();
-    onReady();
-  });
-} else {
-  console.log('Creating new board file');
-  for (var i = 0; i < numElements; i++) {
-    app.boardData[i] = config.clearColor;
-  }
-
-  fs.writeFile(config.boardFilename, new Buffer(app.boardData), function (err) {
-    if (err) throw err;
-
-    onReady();
-    synchroniseFile();
-  });
-}
+new ImageUtils(app);
+app.server = new HTTPServer(app);
+app.websocket = new WebsocketServer(app);
+app.server.http.listen(config.port, function () {
+  console.log('Listening on port %d', app.server.http.address().port);
+});

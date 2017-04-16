@@ -1,6 +1,7 @@
 node_modules/
 backups/
 board.dat
+board.json
 .htpasswd
 sessions.nedb
 users.nedb

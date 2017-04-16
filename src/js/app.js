@@ -144,7 +144,20 @@ window.App = {
     this.updateTransform();
 
     this.initSocket();
-    $.get("/boarddata", this.drawBoard.bind(this));
+    this.drawBoard();
+  },
+  drawBoard: function () {
+    this.image = new Image();
+    this.image.onload = function () {
+      var ctx = this.elements.board[0].getContext("2d");
+      ctx.drawImage(this.image, 0, 0, this.width, this.height);
+    }.bind(this);
+
+    this.image.onerror = function () {
+      $(".loading").fadeIn(500);
+      $(".loading").children()[0].text('Failed to load image, please refresh');
+    };
+    this.image.src = '/boarddata?d=' + Date.now();
   },
   initRestrictedAreas: function () {
     this.elements.restrictedToggle.click(this.restrictedAreaToggle.bind(this));
@@ -187,23 +200,6 @@ window.App = {
         }
       }.bind(this));
     }.bind(this));
-  },
-  drawBoard: function (data) {
-    var ctx = this.elements.board[0].getContext("2d");
-    var imageData = new ImageData(this.width, this.height);
-    var buffer = new Uint32Array(imageData.data.buffer);
-    var imageDataLen = this.width * this.height;
-
-    var rgbPalette = this.palette.map(function (c) {
-      var rgb = hexToRgb(c);
-      return 0xff000000 | rgb.b << 16 | rgb.g << 8 | rgb.r;
-    });
-
-    for (var i = 0; i < imageDataLen; i++) {
-      buffer[i] = rgbPalette[data.charCodeAt(i)];
-    }
-
-    ctx.putImageData(imageData, 0, 0);
   },
   initPalette: function () {
     this.palette.forEach(function (color, idx) {
@@ -358,9 +354,6 @@ window.App = {
       this.elements.alert.fadeOut(200);
     }.bind(this));
   },
-  forceSync: function () {
-    jQuery.get("/boarddata", this.drawBoard.bind(this));
-  },
   initSocket: function () {
     var pendingMessages = 0;
 
@@ -383,7 +376,7 @@ window.App = {
       }
 
       if (this.connectionLost) {
-        $.get("/boarddata", this.drawBoard.bind(this));
+        this.drawBoard();
       }
     }.bind(this));
 
@@ -403,7 +396,7 @@ window.App = {
 
     this.socket.on('place', function (data) {
       var ctx = this.elements.board[0].getContext("2d");
-      ctx.fillStyle = this.palette[data.color];
+      ctx.fillStyle = data.color;
       ctx.fillRect(data.x, data.y, 1, 1);
 
       if (moveTickerBody.is(':visible')) {
@@ -431,7 +424,7 @@ window.App = {
     }.bind(this));
 
     this.socket.on('force-sync', function () {
-      this.forceSync();
+      this.drawBoard();
     }.bind(this));
 
     this.socket.on('auth', function (data) {
@@ -758,7 +751,7 @@ window.App = {
     this.socket.emit('place', {
       x: x,
       y: y,
-      color: this.color
+      color: this.palette[this.color],
     });
 
     //this.switchColor(-1);
