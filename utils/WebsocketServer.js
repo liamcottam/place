@@ -58,19 +58,10 @@ function WebsocketServer(app) {
     }
   }, 1000);
 
-  setInterval(function () {
-    for (key in ipClients) {
-      if (!ipClients[key].connected && ipClients[key].cooldown - Date.now() <= 0) {
-        delete ipClients[key];
-      }
-    }
-  }, 1000);
-
   io.on('connection', function (socket) {
     connected_clients++;
     var ip = app.formatIP(socket.handshake.headers["x-real-ip"] || socket.request.connection.remoteAddress);
     ipClients[ip] = (ipClients[ip]) ? ipClients[ip] : defaultIpSession;
-    ipClients[ip].connected = true;
 
     var id = Math.random().toString(36).substr(2, 5);
     clients[id] = { ready: false };
@@ -101,7 +92,6 @@ function WebsocketServer(app) {
 
     socket.on('disconnect', function () {
       delete clients[id];
-      ipClients[ip].connected = false;
       connected_clients--;
     });
 
