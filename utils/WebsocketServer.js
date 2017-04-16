@@ -126,7 +126,8 @@ function WebsocketServer(app) {
       let x = data.x;
       let y = data.y;
       let color = data.color;
-      console.log('PLACE: %s (%s) - %s, %s, %s', ip, id, x, y, color);
+      let username = (clients[id].username) ? clients[id].username : clients[id].id;
+      console.log('PLACE: %s (%s) - %s, %s, %s', ip, username, x, y, color);
 
       if (x < 0 || x >= config.width || y < 0 || y >= config.height || color < 0 || color > config.palette.length) {
         console.log('PLACE: OUT OF BOUNDS');
@@ -157,16 +158,25 @@ function WebsocketServer(app) {
         return;
       }
 
-      if (!clients[id].is_moderator) {
-        ipClients[ip].cooldown = Date.now() + (app.config.cooldown * 1000);
-        socket.emit('cooldown', app.config.cooldown);
-      }
+      if (clients[id].is_moderator) {
+        io.emit('place', data);
+        app.image.setPixelColor(jrgb, x, y);
+        Pixel.addPixel(rgb, x, y, username, ip);
+      } else {
+        app.checkRestricted(x, y, function (restricted) {
+          if (!restricted) {
+            ipClients[ip].cooldown = Date.now() + (app.config.cooldown * 1000);
+            socket.emit('cooldown', app.config.cooldown);
 
-      let username = (clients[id].username) ? clients[id].username : clients[id].id;
-      data.session_id = username;
-      io.emit('place', data);
-      app.image.setPixelColor(jrgb, x, y);
-      Pixel.addPixel(rgb, x, y, username, ip);
+            data.session_id = username;
+            io.emit('place', data);
+            app.image.setPixelColor(jrgb, x, y);
+            Pixel.addPixel(rgb, x, y, username, ip);
+          } else {
+            socket.emit('alert', 'Area is restricted');
+          }
+        });
+      }
     });
 
     socket.on('chat', function (message) {

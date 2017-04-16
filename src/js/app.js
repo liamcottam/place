@@ -155,7 +155,7 @@ window.App = {
 
     this.image.onerror = function () {
       $(".loading").fadeIn(500);
-      $(".loading").children()[0].text('Failed to load image, please refresh');
+      $(".loading").children().first().text('Failed to load image, please refresh');
     };
     this.image.src = '/boarddata?d=' + Date.now();
   },
