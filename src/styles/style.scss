@@ -201,18 +201,18 @@ html, body {
 }
 
 @media (max-width: 768px) {
-    /*.sidebar {
+    .sidebar {
         display: none;
     }
 
     .bubble-container {
         display: none;
-    }*/
+    }
 
-    /*.coords {
+    .coords {
         top: $uiPadding;
         bottom: auto;
-    }*/
+    }
 }
 
 @import 'sidebar';

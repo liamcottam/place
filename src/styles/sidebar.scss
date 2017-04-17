@@ -98,6 +98,16 @@
             margin: 3px;
             word-break: break-word;
         }
+
+        .timestamp {
+            color: lightslategray;
+            margin-right: 3px;
+            width: 35px;
+            position: relative;
+            white-space: nowrap;
+            display: inline-block;
+            text-align: right;
+        }
     }
 
 

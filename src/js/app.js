@@ -230,7 +230,7 @@ window.App = {
         showInput: true,
         allowEmpty: true,
         change: function (color) {
-          this.switchColor(color.toHexString());
+          this.switchColor((color !== null) ? color.toHexString() : null);
         }.bind(this)
       });
     }
@@ -517,6 +517,7 @@ window.App = {
       }
 
       if (data.is_moderator) username.addClass('moderator');
+      $('<span>', { class: 'timestamp' }).text(moment().format('HH:mm')).appendTo(div);
       username.appendTo(div);
       message.appendTo(div);
       d.scrollTop(d.prop('scrollHeight'));
