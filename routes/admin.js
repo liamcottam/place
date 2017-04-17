@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const Jimp = require('jimp');
+const Pixel = require('../models/pixel');
 
 function Router(app) {
   let router = express.Router();
@@ -13,7 +15,7 @@ function Router(app) {
 
   /* GET Admin Root. */
   router.get('/', auth.connect(basic), (req, res) => {
-    res.render('admin', { title: 'Admin Area' });
+    res.render('admin', { title: 'Admin', enable_restrictions: app.config.enable_restrictions, allow_custom_colors: app.config.allow_custom_colors });
   });
 
   router.get('/backups', auth.connect(basic), (req, res) => {
@@ -70,28 +72,27 @@ function Router(app) {
   });
 
   router.post('/delete', auth.connect(basic), (req, res) => {
-    var data = req.body;
-
-    var obj = {
+    let obj = {
       start: {
-        x: parseInt(data.startx),
-        y: parseInt(data.starty)
+        x: parseInt(req.body.startx),
+        y: parseInt(req.body.starty)
       },
       end: {
-        x: parseInt(data.endx),
-        y: parseInt(data.endy)
+        x: parseInt(req.body.endx),
+        y: parseInt(req.body.endy)
       }
     }
 
-    var position = 0;
-    for (var i = obj.start.y; i <= obj.end.y; i++) {
-      for (var j = obj.start.x; j <= obj.end.x; j++) {
-        position = (i * app.config.height) + j;
-        app.boardData[position] = app.config.clearColor;
+    let clearColor = Jimp.intToRGBA(app.config.clearColor);
+    for (var y = obj.start.y; y <= obj.end.y; y++) {
+      for (var x = obj.start.x; x <= obj.end.x; x++) {
+        if (app.image.getPixelColor(x, y) !== app.config.clearColor) {
+          app.image.setPixelColor(app.config.clearColor, x, y);
+          Pixel.addPixel(clearColor, x, y, 'admin', '127.0.0.1');
+        }
       }
     }
 
-    app.needWrite = true;
     app.websocket.emit('force-sync');
     res.sendStatus(200);
   });

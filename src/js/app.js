@@ -88,12 +88,13 @@ window.App = {
   panX: 0,
   panY: 0,
   scale: 4,
+  maxScale: 40,
+  minScale: 0.75,
   cooldown: 0,
   color: null,
   init: function () {
     this.color = null;
     this.connectionLost = false;
-    this.mod_tools_requested = false;
     this.showRestrictedAreas = false;
     this.restrictedAreas = null;
 
@@ -293,7 +294,7 @@ window.App = {
         this.scale *= 1.3;
       }
 
-      this.scale = Math.min(40, Math.max(0.75, this.scale));
+      this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale));
 
       var dx = evt.clientX - this.elements.boardContainer.width() / 2;
       var dy = evt.clientY - this.elements.boardContainer.height() / 2;
@@ -612,8 +613,7 @@ window.App = {
       if (!reauth)
         setAuthCookie(data.session_key, this.username);
 
-      if (data.is_moderator && !this.mod_tools_requested) {
-        this.mod_tools_requested = true;
+      if (data.is_moderator && !window.ModTools) {
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
     } else {
