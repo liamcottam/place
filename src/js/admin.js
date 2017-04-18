@@ -67,8 +67,8 @@ window.AdminTools = {
     }.bind(this));
 
     this.elements.toolsContainer.append(clearSquare);
-    this.elements.toolsContainer.append(restoreSection);
-    this.elements.toolsContainer.append(returnToLive);
+    //this.elements.toolsContainer.append(restoreSection);
+    //this.elements.toolsContainer.append(returnToLive);
   },
   toolClearSquare: function () {
     ModTools.startSelectionMode(function (start, end) {

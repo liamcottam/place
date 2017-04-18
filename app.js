@@ -4,6 +4,7 @@ const config = require('./config');
 const ImageUtils = require('./utils/ImageUtils');
 const HTTPServer = require('./utils/HTTPServer');
 const WebsocketServer = require('./utils/WebsocketServer');
+const mongoose = require('mongoose');
 
 // TODO: Move to proper database, mongodb perhaps
 const Datastore = require('nedb');
@@ -11,15 +12,6 @@ const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
 const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
 const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
-
-const mongoose = require('mongoose');
-try {
-  mongoose.connect(config.database);
-} catch (err) {
-  console.error(err);
-  console.error('Failed to connect to database, please check the above error');
-  process.exit(1);
-}
 
 var app = {};
 app.config = config;
@@ -215,7 +207,12 @@ app.hexToRgb = function (hex) {
   } : null;
 };
 
-new ImageUtils(app);
+mongoose.Promise = global.Promise;
+mongoose.connect(config.database, function(err){
+  if(err) throw err;
+  new ImageUtils(app);
+});
+
 app.server = new HTTPServer(app);
 app.websocket = new WebsocketServer(app);
 app.server.http.listen(config.port, function () {

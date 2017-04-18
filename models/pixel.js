@@ -70,7 +70,7 @@ var PixelSchema = new Schema({
 });
 
 PixelSchema.statics.addPixel = function (color, x, y, username, ip) {
-  this.findOneAndUpdate({
+  return this.findOneAndUpdate({
     xPos: x,
     yPos: y
   }, {
@@ -88,10 +88,10 @@ PixelSchema.statics.addPixel = function (color, x, y, username, ip) {
 PixelSchema.statics.getAllPixels = function (addPixelToImage) {
   return new Promise((resolve, reject) => {
     this.find().lean().cursor()
-      .on('data', function (pixel) {
+      .on('data', (pixel) => {
         addPixelToImage(pixel);
       })
-      .on('error', function (err) {
+      .on('error', (err) => {
         return reject(err);
       })
       .on('end', function () {

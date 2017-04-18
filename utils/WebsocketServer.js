@@ -118,6 +118,7 @@ function WebsocketServer(app) {
       let y = data.y;
       let color = data.color;
       let username = (clients[id].username) ? clients[id].username : clients[id].id;
+      data.session_id = username;
       console.log('PLACE: %s (%s) - %s, %s, %s', ip, username, x, y, color);
 
       if (x < 0 || x >= config.width || y < 0 || y >= config.height) {
@@ -150,21 +151,29 @@ function WebsocketServer(app) {
         return;
       }
 
+      // TODO: Fix code duplication, move restrictions to db
       if (clients[id].is_moderator) {
-        data.session_id = username;
-        io.emit('place', data);
-        app.image.setPixelColor(jrgb, x, y);
-        Pixel.addPixel(rgb, x, y, username, ip);
+        Pixel.addPixel(rgb, x, y, username, ip)
+          .then(function () {
+            io.emit('place', data);
+            app.image.setPixelColor(jrgb, x, y);
+          })
+          .catch((err) => {
+            console.error('Failed to process pixel');
+          });
       } else {
         app.checkRestricted(x, y, function (restricted) {
           if (!restricted) {
-            ipClients[ip].cooldown = now + (app.config.cooldown * 1000);
-            socket.emit('cooldown', app.config.cooldown);
-
-            data.session_id = username;
-            io.emit('place', data);
-            app.image.setPixelColor(jrgb, x, y);
-            Pixel.addPixel(rgb, x, y, username, ip);
+            Pixel.addPixel(rgb, x, y, username, ip)
+              .then(function () {
+                ipClients[ip].cooldown = now + (app.config.cooldown * 1000);
+                socket.emit('cooldown', app.config.cooldown);
+                io.emit('place', data);
+                app.image.setPixelColor(jrgb, x, y);
+              })
+              .catch((err) => {
+                console.error('Failed to process pixel');
+              });
           } else {
             socket.emit('alert', 'Area is restricted');
           }
