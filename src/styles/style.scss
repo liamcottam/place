@@ -15,7 +15,7 @@ html, body {
     background-color: #ccc;
     overflow: hidden;
     position: relative;
-    font-family: sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .board-container {
@@ -60,6 +60,7 @@ html, body {
 }
 
 .cursor {
+    position: absolute;
     width: 36px;
     height: 36px;
     border: 1px solid black;
@@ -101,7 +102,6 @@ html, body {
 
     padding: 16px;
     background-color: $bubbleBgColor;
-    border-radius: 16px;
     color: white;
     font-size: 24px;
 

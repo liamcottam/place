@@ -466,7 +466,7 @@ window.App = {
       var d = $('.chat-log');
       var div = $('<div>', { 'class': 'chat-line' }).appendTo(d);
       var username = $('<span>', { "class": 'username' }).text(data.chat_id);
-      var message = $('<span>', { "class": 'chat-message' }).text(': ' + data.message);
+      var message = $('<span>', { "class": 'chat-message' }).text(data.message);
 
       if (this.elements.chatContainer.is(':hidden') && pendingMessages <= 125) {
         pendingMessages++;
@@ -518,8 +518,9 @@ window.App = {
       }
 
       if (data.is_moderator) username.addClass('moderator');
-      $('<span>', { class: 'timestamp' }).text(moment().format('HH:mm')).appendTo(div);
+      $('<span>', { class: 'timestamp' }).append($('<small>').text(moment().format('HH:mm'))).appendTo(div);
       username.appendTo(div);
+      $('<span>', { class: 'colon' }).text(':').appendTo(div);
       message.appendTo(div);
       d.scrollTop(d.prop('scrollHeight'));
       if (d.children().length >= 125) {
@@ -633,12 +634,7 @@ window.App = {
       this.elements.loginContainer.hide();
       this.elements.chatToggle.text('Chat');
 
-      if (this.elements.chatContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-sidebar');
-        this.elements.chatInput.focus();
-      } else {
-        this.elements.palette.removeClass('palette-sidebar');
-      }
+      this.elements.palette.toggleClass('palette-sidebar', this.elements.chatContainer.is(':visible'));
     }.bind(this));
 
     this.elements.usersToggle.click(function () {
@@ -646,11 +642,7 @@ window.App = {
       this.elements.usersContainer.toggle();
       this.elements.loginContainer.hide();
 
-      if (this.elements.usersContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-sidebar');
-      } else {
-        this.elements.palette.removeClass('palette-sidebar');
-      }
+      this.elements.palette.toggleClass('palette-sidebar', this.elements.usersContainer.is(':visible'));
     }.bind(this));
 
     this.elements.loginToggle.click(function () {
@@ -672,14 +664,7 @@ window.App = {
       this.elements.usersContainer.hide();
       this.elements.loginContainer.toggle();
 
-      if (this.elements.loginContainer.is(':visible')) {
-        this.elements.palette.addClass('palette-sidebar');
-        $('#username').focus();
-
-      } else {
-        this.elements.palette.removeClass('palette-sidebar');
-      }
-
+      this.elements.palette.toggleClass('palette-sidebar', this.elements.loginContainer.is(':visible'));
     }.bind(this));
 
     this.elements.loginButton.click(function () {
