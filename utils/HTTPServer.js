@@ -26,11 +26,12 @@ function HTTPServer(app) {
       maxAge: 1000 * 60 * 60 * 24 * 14,
       httpOnly: true,
       sameSite: 'strict',
-      secure: (app.config.domain && app.config.domain.indexOf('https') > -1) ? true : false,
-      domain: (app.config.domain) ? app.config.domain : ''
+      secure: app.config.https,
+      domain: app.config.domain
     }
   });
 
+  server.set('trust proxy', 1);
   server.set('view engine', 'pug');
   server.set('views', 'views');
 

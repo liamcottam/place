@@ -1,7 +1,8 @@
 module.exports = {
   app_title: 'Place Reloaded',
   database: 'mongodb://localhost/place',
-  domain: '',
+  https: false, // Used only for the cookie, HTTPS itself should be configured in nginx
+  domain: 'localhost',
   secret: 'SUPERSECRETKEY',
   port: 3000,
   salt_length: 64,
