@@ -1,10 +1,15 @@
 const socketio = require('socket.io');
 const Jimp = require('jimp');
+const sharedsession = require("express-socket.io-session");
 
 const Pixel = require('../models/pixel');
 
 function WebsocketServer(app) {
   const io = socketio(app.server.http);
+
+  io.use(sharedsession(app.server.sessionMiddleware, {
+    autoSave: true
+  }));
 
   var ipClients = [];
   var clients = [];
@@ -82,17 +87,26 @@ function WebsocketServer(app) {
         };
 
         if (userBroadcast === null) userBroadcast = userBroadcastFn();
-        socket.emit('session', { session_id: id, users: userBroadcast });
 
-        var diff = ipClients[ip].cooldown - Date.now();
-        if (diff > 0) {
-          socket.emit('cooldown', diff / 1000);
+        var sessionData = { users: userBroadcast };
+        if (socket.handshake.session.userdata) {
+          sessionData.userdata = socket.handshake.session.userdata;
+          sessionData.userdata.success = true;
+          clients[id].username = sessionData.userdata.username;
+          clients[id].is_moderator = sessionData.userdata.is_moderator;
         }
+
+        if (!sessionData.userdata || clients[id].is_moderator) {
+          var diff = ipClients[ip].cooldown - Date.now();
+          if (diff > 0) sessionData.cooldown = diff / 1000;
+        }
+
+        socket.emit('session', sessionData);
       }
     });
 
     socket.on('disconnect', function () {
-      delete clients[id];
+      Reflect.deleteProperty(clients, id);
       connected_clients--;
     });
 
@@ -212,48 +226,25 @@ function WebsocketServer(app) {
           console.log('AUTH-SUCCESS: %s (%s) - %s', ip, id, data.username);
           clients[id].username = data.username;
           clients[id].is_moderator = response.is_moderator;
-          if (response.is_moderator)
-            socket.emit('cooldown', 0);
+          if (response.is_moderator) socket.emit('cooldown', 0);
           socket.emit('auth', response);
+
+          socket.handshake.session.userdata = {
+            username: data.username,
+            is_moderator: response.is_moderator
+          };
+          socket.handshake.session.save();
         } else {
           console.log('AUTH-FAIL: %s (%s) - %s - ', ip, id, data.username, err);
-          socket.emit('auth', {
-            success: false,
-            message: err
-          });
+          socket.emit('auth', { success: false, message: err });
         }
       });
     });
 
-    socket.on('reauth', function (data) {
-      app.authenticateSession(data.username, data.session_key, function (err, response) {
-        if (!err) {
-          console.log('REAUTH: %s (%s) - %s', ip, id, data.username);
-          clients[id].username = data.username;
-          clients[id].is_moderator = response.is_moderator;
-          if (response.is_moderator)
-            socket.emit('cooldown', 0);
-          socket.emit('reauth', response);
-        } else {
-          console.log('REAUTH-FAIL: %s (%s) - %s', ip, id, data.username);
-          socket.emit('reauth', {
-            success: false,
-            message: err
-          });
-        }
-      });
-    });
-
-    socket.on('logout', function (data) {
-      var new_id = Math.random().toString(36).substr(2, 5);
-      var old_client = clients[id];
-      delete clients[id];
-      id = new_id;
-      clients[id] = old_client;
-      clients[id].id = id;
-      clients[id].username = null;
-      clients[id].is_moderator = false;
-      app.deleteSession(data.session_key);
+    socket.on('logout', function () {
+      Reflect.deleteProperty(clients, id);
+      Reflect.deleteProperty(socket.handshake.session, 'userdata');
+      socket.handshake.session.save();
     });
 
     var findUser = function (needle) {

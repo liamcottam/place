@@ -83,11 +83,11 @@ function Router(app) {
       }
     }
 
-    let clearColor = Jimp.intToRGBA(app.config.clearColor);
+    let clearColor = Jimp.intToRGBA(app.config.clear_color);
     for (var y = obj.start.y; y <= obj.end.y; y++) {
       for (var x = obj.start.x; x <= obj.end.x; x++) {
-        if (app.image.getPixelColor(x, y) !== app.config.clearColor) {
-          app.image.setPixelColor(app.config.clearColor, x, y);
+        if (app.image.getPixelColor(x, y) !== app.config.clear_color) {
+          app.image.setPixelColor(app.config.clear_color, x, y);
           Pixel.addPixel(clearColor, x, y, 'admin', '127.0.0.1');
         }
       }

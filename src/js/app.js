@@ -18,46 +18,6 @@ function hexToRgb(hex) {
   } : null;
 }
 
-function setAuthCookie(session_key, username) {
-  var l = window.location;
-  var d = new Date();
-  d.setTime(d.getTime() + (7 * 24 * 60 * 60 * 1000));
-  var expires = "expires=" + d.toUTCString();
-  var cookie = 'session=' + session_key + ':' + username + ';' + expires + ";path=/;";
-  if (l.protocol === 'https:') {
-    cookie += 'secure;';
-  }
-
-  document.cookie = cookie;
-}
-
-
-function getAuthCookie() {
-  var name = 'session=';
-  var ca = document.cookie.split(';');
-  for (var i = 0; i < ca.length; i++) {
-    var c = ca[i];
-    while (c.charAt(0) == ' ') {
-      c = c.substring(1);
-    }
-    if (c.indexOf(name) == 0) {
-      var substr = c.substring(name.length, c.length).split(':');
-      return {
-        session_key: substr[0],
-        username: substr[1]
-      };
-    }
-  }
-  return null;
-}
-
-function deleteAuthCookie() {
-  var d = new Date();
-  d.setDate(d.getDate() - 1);
-  var expires = "expires=" + d;
-  document.cookie = 'session' + "=;" + expires + "; path=/";
-}
-
 window.App = {
   elements: {
     board: $("#board"),
@@ -99,8 +59,6 @@ window.App = {
     this.restrictedAreas = null;
 
     this.username = null;
-    this.session_id = null;
-    this.session_key = null;
     this.spectate_user = null;
 
     $(".board-container").hide();
@@ -384,17 +342,6 @@ window.App = {
       $(".loading").fadeOut(500);
       this.elements.alert.fadeOut(200);
 
-      var auth = getAuthCookie();
-      if (auth !== null) {
-        this.username = auth.username;
-        this.session_key = auth.session_key;
-
-        this.socket.emit('reauth', {
-          username: this.username,
-          session_key: this.session_key
-        });
-      }
-
       if (this.connectionLost) {
         this.drawBoard();
       }
@@ -402,6 +349,7 @@ window.App = {
 
     this.socket.on('disconnect', function () {
       this.connectionLost = true;
+      this.elements.loginButton.prop('disabled', false);
       this.alert('Disconnected from server... Attempting to reconnect');
     }.bind(this));
 
@@ -409,7 +357,10 @@ window.App = {
 
     // Events sent by websocket
     this.socket.on('session', function (data) {
-      this.session_id = data.session_id;
+      if (data.userdata) this.onAuthentication(data.userdata);
+      else if (this.username !== null) this.onAuthentication({ success: false });
+      if (data.cooldown) this.updateTime(data.cooldown);
+      else this.updateTime(0);
       this.updateUserCount(data.users.connected);
       this.updateUserList(data.users);
     }.bind(this));
@@ -439,8 +390,7 @@ window.App = {
     }.bind(this));
 
     this.socket.on('cooldown', function (wait) {
-      this.cooldown = Math.ceil(wait + 1);
-      this.updateTime();
+      this.updateTime(wait);
     }.bind(this));
 
     this.socket.on('force-sync', function () {
@@ -449,12 +399,7 @@ window.App = {
 
     this.socket.on('auth', function (data) {
       if (data.message) this.alert(data.message);
-      this.onAuthentication(data, false);
-    }.bind(this));
-
-    this.socket.on('reauth', function (data) {
-      if (data.message) this.alert(data.message);
-      this.onAuthentication(data, true);
+      this.onAuthentication(data);
     }.bind(this));
 
     this.socket.on('users', function (data) {
@@ -596,33 +541,24 @@ window.App = {
     this.elements.usersToggle.fadeIn(200);
     this.elements.usersToggle.text('Users: ' + count);
   },
-  authenticateChat: function () {
-    this.username = $('#username').val();
-
+  authenticate: function () {
     this.socket.emit('auth', {
-      username: this.username,
+      username: $('#username').val(),
       password: $('#password').val()
     });
   },
-  onAuthentication: function (data, reauth) {
+  onAuthentication: function (data) {
     if (data.success) {
-      this.session_key = data.session_key;
       this.elements.loginToggle.text('Logout');
       this.elements.loginContainer.hide();
       this.elements.palette.removeClass('palette-sidebar');
-
-      if (!reauth)
-        setAuthCookie(data.session_key, this.username);
+      this.username = data.username;
 
       if (data.is_moderator && !window.ModTools) {
         $.get('js/mod_tools.js', function (data) { eval(data) });
       }
     } else {
-      this.session_key = null;
-      this.username = null;
-      deleteAuthCookie();
-      if (reauth) location.reload();
-
+      if (this.username !== null) return location.reload();
       this.elements.loginToggle.text('Login');
       this.elements.loginButton.prop('disabled', false);
     }
@@ -646,19 +582,9 @@ window.App = {
     }.bind(this));
 
     this.elements.loginToggle.click(function () {
-      if (this.session_key !== null) {
-        this.socket.emit('logout', {
-          type: 'logout',
-          session_key: this.session_key
-        });
-        this.session_key = null;
-        this.username = null;
-        deleteAuthCookie();
-        location.reload();
-
-        this.elements.loginToggle.text('Login');
-        this.elements.loginButton.prop('disabled', false);
-        return;
+      if (this.username !== null) {
+        this.socket.emit('logout');
+        return location.reload();
       }
       this.elements.chatContainer.hide();
       this.elements.usersContainer.hide();
@@ -669,7 +595,7 @@ window.App = {
 
     this.elements.loginButton.click(function () {
       this.elements.loginButton.prop('disabled', true);
-      this.authenticateChat();
+      this.authenticate();
     }.bind(this));
 
     this.elements.chatInput.keypress(function (e) {
@@ -771,10 +697,10 @@ window.App = {
     alert.find(".text").text(message);
     alert.fadeIn(200);
   },
-  updateTime: function () {
-    var last = this.cooldown;
+  updateTime: function (cooldown) {
+    if (typeof cooldown !== 'undefined') this.cooldown = cooldown;
+    else this.cooldown -= 1;
 
-    this.cooldown -= 1;
     if (this.cooldown < 0) this.cooldown = 0;
     this.cooldown |= 0;
 
@@ -786,18 +712,11 @@ window.App = {
       var minuteStr = minutes < 10 ? "0" + minutes : minutes;
       this.elements.timer.text(minuteStr + ":" + secsStr);
 
-      $(".palette-color").css("cursor", "not-allowed")
+      $(".palette-color").css("cursor", "not-allowed");
+      setTimeout(this.updateTime.bind(this), 1000);
     } else {
       this.elements.timer.hide();
-      $(".palette-color").css("cursor", "")
-    }
-
-    if (this.cooldown === 0 && last !== 0) {
-      /*new Notification("Place Thing", {
-        body: "Your next pixel is available!"
-      });*/
-    } else {
-      setTimeout(this.updateTime.bind(this), 1000);
+      $(".palette-color").css("cursor", "");
     }
   },
   spectate: function (username) {

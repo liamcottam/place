@@ -3,6 +3,8 @@ const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const path = require('path');
+const session = require('express-session');
+const MongoStore = require('connect-mongo')(session);
 
 const indexRoutes = require('../routes/index');
 const adminRoutes = require('../routes/admin');
@@ -10,6 +12,24 @@ const adminRoutes = require('../routes/admin');
 function HTTPServer(app) {
   const server = express();
   const httpServer = require('http').createServer(server);
+
+  const sessionMiddleware = session({
+    store: new MongoStore({
+      mongooseConnection: app.mongooseConnection,
+      touchAfter: 3600
+    }),
+    secret: app.config.secret,
+    resave: false,
+    saveUninitialized: true,
+    rolling: true,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: (app.config.domain && app.config.domain.indexOf('https') > -1) ? true : false,
+      domain: (app.config.domain) ? app.config.domain : ''
+    }
+  });
 
   server.set('view engine', 'pug');
   server.set('views', 'views');
@@ -19,7 +39,8 @@ function HTTPServer(app) {
   server.use(bodyParser.urlencoded({ extended: false }));
   server.use(cookieParser());
   server.use(express.static('public'));
-  
+  server.use(sessionMiddleware);
+
   server.use('/', indexRoutes(app));
   server.use('/admin', adminRoutes(app));
 
@@ -30,7 +51,8 @@ function HTTPServer(app) {
 
   return {
     express: server,
-    http: httpServer
+    http: httpServer,
+    sessionMiddleware: sessionMiddleware
   };
 }
 

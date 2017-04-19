@@ -2,7 +2,7 @@ const Jimp = require('jimp');
 const Pixel = require('../models/pixel');
 
 function ImageUtils(app) {
-  new Jimp(app.config.width, app.config.height, app.config.clearColor, function (err, image) {
+  new Jimp(app.config.width, app.config.height, app.config.clear_color, function (err, image) {
     if (err) throw err;
 
     Pixel.getAllPixels((pixel) => {

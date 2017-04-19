@@ -9,7 +9,6 @@ const mongoose = require('mongoose');
 // TODO: Move to proper database, mongodb perhaps
 const Datastore = require('nedb');
 const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
-const session_db = new Datastore({ filename: 'sessions.nedb', autoload: true });
 const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
 const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
 
@@ -90,18 +89,6 @@ function saltHash(password) {
   };
 };
 
-function generateSession(username) {
-  var session = {
-    username: username,
-    session_key: generateSalt(),
-    valid_until: Date.now() + (1000 * 60 * 60 * 24 * 7),
-  };
-
-  session_db.update({ username: username }, session, { upsert: true });
-
-  return session;
-};
-
 app.authenticateUser = function (username, password, callback) {
   if (username.length === 0 || password.length === 0) {
     callback('Username/password required', null);
@@ -119,10 +106,9 @@ app.authenticateUser = function (username, password, callback) {
     if (user) {
 
       if (hash(password, user.salt).hash === user.hash) {
-        var session = generateSession(username);
         return callback(null, {
           success: true,
-          session_key: session.session_key,
+          username: username,
           is_moderator: user.is_moderator,
         });
       }
@@ -132,7 +118,6 @@ app.authenticateUser = function (username, password, callback) {
       if (password.length < 6) return callback('Password must be at least 6 characters', null);
 
       var data = saltHash(password);
-      var session = generateSession(username);
 
       user_db.insert({
         username: username,
@@ -143,39 +128,11 @@ app.authenticateUser = function (username, password, callback) {
 
       return callback(null, {
         success: true,
-        message: 'Created new account with password provided',
-        session_key: session.session_key,
+        username: username,
+        message: 'Created new account with password provided'
       });
     }
   });
-};
-
-app.authenticateSession = function (username, session_key, callback) {
-  user_db.findOne({ username: username }, function (err, user) {
-    if (err) throw err;
-    if (!user) return;
-
-    session_db.findOne({ username: username, session_key: session_key }, function (err, session) {
-      if (err) throw err;
-
-      if (session && session.valid_until > Date.now()) {
-        session.valid_until = Date.now() + (1000 * 60 * 60 * 24 * 7);
-        session_db.update({ _id: session._id }, { $set: { valid_until: session.valid_until } }, {});
-
-        callback(null, {
-          type: 'reauth',
-          success: true,
-          is_moderator: user.is_moderator,
-        });
-      } else {
-        callback('Invalid session', null);
-      }
-    });
-  });
-};
-
-app.deleteSession = function (session_key) {
-  session_db.remove({ session_key: session_key });
 };
 
 app.banIP = function (ip) {
@@ -208,13 +165,14 @@ app.hexToRgb = function (hex) {
 };
 
 mongoose.Promise = global.Promise;
-mongoose.connect(config.database, function(err){
-  if(err) throw err;
-  new ImageUtils(app);
-});
+mongoose.connect(config.database, function (err) {
+  if (err) throw err;
+  app.mongooseConnection = mongoose.connection;
 
-app.server = new HTTPServer(app);
-app.websocket = new WebsocketServer(app);
-app.server.http.listen(config.port, function () {
-  console.log('Listening on port %d', app.server.http.address().port);
+  new ImageUtils(app);
+  app.server = new HTTPServer(app);
+  app.websocket = new WebsocketServer(app);
+  app.server.http.listen(config.port, function () {
+    console.log('Listening on port %d', app.server.http.address().port);
+  });
 });
