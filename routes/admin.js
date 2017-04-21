@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const Jimp = require('jimp');
-const Pixel = require('../models/pixel');
+const Pixel = require('../models/Pixel');
 
 function Router(app) {
   let router = express.Router();

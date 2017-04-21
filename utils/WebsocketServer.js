@@ -2,7 +2,7 @@ const socketio = require('socket.io');
 const Jimp = require('jimp');
 const sharedsession = require("express-socket.io-session");
 
-const Pixel = require('../models/pixel');
+const Pixel = require('../models/Pixel');
 
 function WebsocketServer(app) {
   const io = socketio(app.server.http);
@@ -131,63 +131,59 @@ function WebsocketServer(app) {
       let x = data.x;
       let y = data.y;
       let color = data.color;
-      let username = (clients[id].username) ? clients[id].username : clients[id].id;
+      let anon = (clients[id].username) ? false : true;
+      let username = (anon) ? clients[id].id : clients[id].username;
       data.session_id = username;
       console.log('PLACE: %s (%s) - %s, %s, %s', ip, username, x, y, color);
 
-      if (x < 0 || x >= config.width || y < 0 || y >= config.height) {
-        console.log('PLACE: OUT OF BOUNDS');
-        return;
-      }
+      // Ensure the pixel position is within the bounds of the board.
+      if (x < 0 || x >= config.width || y < 0 || y >= config.height) return;
 
+      // Tried to place before their cooldown has expired, ignore
       let now = Date.now();
-      if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now > 0 && !clients[id].is_moderator) {
-        console.log('PLACE: Attempted place before cooldown');
-        return;
-      }
+      if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now > 0 && !clients[id].is_moderator) return;
 
+      // Sent garbage data, ignore
       let rgb = app.hexToRgb(data.color);
-      if (rgb === null) {
-        console.log('PLACE: Attempted to place invalid color');
-        socket.emit('alert', 'Invalid color');
-        return;
-      }
+      if (rgb === null) return;
 
-      if (!app.config.allow_custom_colors && app.config.palette.indexOf(data.color) === -1) {
-        console.log("PLACE: Attempted to place color not in palette");
-        socket.emit('alert', 'Custom colors are disabled');
-        return;
-      }
+      // Prevent placing colors that are not in the palette if allow_custom_colors is not enabled.
+      if (!app.config.allow_custom_colors && app.config.palette.indexOf(data.color) === -1) return;
 
+      // Prevent place for same color
       let jrgb = Jimp.rgbaToInt(rgb.r, rgb.g, rgb.b, 255);
-      if (app.image.getPixelColor(x, y) === jrgb) {
-        console.log('PLACE: Prevented place for same colour');
-        return;
-      }
+      if (app.image.getPixelColor(x, y) === jrgb) return;
 
       // TODO: Fix code duplication, move restrictions to db
       if (clients[id].is_moderator) {
-        Pixel.addPixel(rgb, x, y, username, ip)
-          .then(function () {
-            io.emit('place', data);
-            app.image.setPixelColor(jrgb, x, y);
-          })
-          .catch((err) => {
-            console.error('Failed to process pixel');
-          });
+        Pixel.addPixel({
+          x: x, y: y,
+          color: rgb,
+          ip: ip,
+          username: username,
+          anon: false
+        }, function (err) {
+          if (err) return console.error('Failed to process pixel!');
+          io.emit('place', data);
+          app.image.setPixelColor(jrgb, x, y);
+        });
       } else {
         app.checkRestricted(x, y, function (restricted) {
           if (!restricted) {
-            Pixel.addPixel(rgb, x, y, username, ip)
-              .then(function () {
-                ipClients[ip].cooldown = now + (app.config.cooldown * 1000);
-                socket.emit('cooldown', app.config.cooldown);
-                io.emit('place', data);
-                app.image.setPixelColor(jrgb, x, y);
-              })
-              .catch((err) => {
-                console.error('Failed to process pixel');
-              });
+            Pixel.addPixel({
+              x: x, y: y,
+              color: rgb,
+              ip: ip,
+              username: username,
+              anon: anon
+            }, function (err) {
+              if (err) return console.error('Failed to process pixel!');
+
+              ipClients[ip].cooldown = now + (app.config.cooldown * 1000);
+              socket.emit('cooldown', app.config.cooldown);
+              io.emit('place', data);
+              app.image.setPixelColor(jrgb, x, y);
+            });
           } else {
             socket.emit('alert', 'Area is restricted');
           }

@@ -1,5 +1,5 @@
 const Jimp = require('jimp');
-const Pixel = require('../models/pixel');
+const Pixel = require('../models/Pixel');
 
 function ImageUtils(app) {
   new Jimp(app.config.width, app.config.height, app.config.clear_color, function (err, image) {

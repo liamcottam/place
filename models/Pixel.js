@@ -4,6 +4,7 @@
  * Which is licensed under AGPL v3.0 and can be viewed here https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 const mongoose = require('mongoose');
+const PixelArchive = require('./PixelArchive');
 const Schema = mongoose.Schema;
 
 var colorPieceValidator = function (c) {
@@ -67,22 +68,37 @@ var PixelSchema = new Schema({
     type: String,
     required: true
   },
+  anon: {
+    type: Boolean,
+    required: true
+  },
 });
 
-PixelSchema.statics.addPixel = function (color, x, y, username, ip) {
-  return this.findOneAndUpdate({
-    xPos: x,
-    yPos: y
+PixelSchema.statics.addPixel = function (data, callback) {
+  this.findOneAndUpdate({
+    xPos: data.x,
+    yPos: data.y
   }, {
-      colorR: color.r,
-      colorG: color.g,
-      colorB: color.b,
+      colorR: data.color.r,
+      colorG: data.color.g,
+      colorB: data.color.b,
       createdAt: Date.now(),
-      username: username,
-      ip: ip
+      username: data.username,
+      ip: data.ip,
+      anon: data.anon
     }, {
       upsert: true
-    }).exec();
+    }, function (err, pixel) {
+      if (err) return callback(err);
+      callback();
+
+      // Archive the previous pixel if there was one before it
+      if (pixel) {
+        new PixelArchive(pixel.toObject()).save(function (err) {
+          if (err) console.error(err);
+        });
+      }
+    });
 };
 
 PixelSchema.statics.getAllPixels = function (addPixelToImage) {
