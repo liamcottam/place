@@ -1,7 +1,7 @@
 node_modules/
 backups/
 config.js
-ecosystem.js
+ecosystem.json
 .htpasswd
 users.nedb
 banned.nedb

@@ -184,13 +184,18 @@ window.App = {
       $("<input>")
         .addClass('color-picker')
         .appendTo(this.elements.palette);
-      $(".color-picker").spectrum({
+      var picker = $(".color-picker").spectrum({
         showPalette: true,
         showInput: true,
         allowEmpty: true,
+        preferredFormat: "hex",
+        localStorageKey: "kti.place",
         change: function (color) {
           this.switchColor((color !== null) ? color.toHexString() : null);
-        }.bind(this)
+        }.bind(this),
+        show: function () {
+          $(".color-picker").spectrum("reflow");
+        }
       });
     }
   },
