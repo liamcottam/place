@@ -233,7 +233,6 @@ html, body {
 
     .coords {
         top: $uiPadding;
-        bottom: auto;
+        bottom: auto !important;
     }
 }
-
