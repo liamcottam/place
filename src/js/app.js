@@ -18,6 +18,14 @@ function hexToRgb(hex) {
   } : null;
 }
 
+function rgb2hex(rgb) {
+  rgb = rgb.match(/^rgba?[\s+]?\([\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?/i);
+  return (rgb && rgb.length === 4) ? "#" +
+    ("0" + parseInt(rgb[1], 10).toString(16)).slice(-2) +
+    ("0" + parseInt(rgb[2], 10).toString(16)).slice(-2) +
+    ("0" + parseInt(rgb[3], 10).toString(16)).slice(-2) : '';
+}
+
 window.App = {
   elements: {
     board: $("#board"),
@@ -72,7 +80,7 @@ window.App = {
     $.get("/boardinfo", this.initBoard.bind(this));
 
     this.elements.pixelInfo.click(function () {
-      this.elements.pixelInfo.hide();
+      this.elements.pixelInfo.addClass('hide');
     }.bind(this));
 
     this.initBoardMovement();
@@ -246,7 +254,7 @@ window.App = {
         } else if (evt.keyCode === 27) {
           // Clear color, escape key
           this.switchColor(null);
-          this.elements.pixelInfo.hide();
+          this.elements.pixelInfo.addClass('hide');
           this.elements.reticule.hide();
           this.elements.cursor.hide();
         }
@@ -256,7 +264,7 @@ window.App = {
     }.bind(this));
 
     this.elements.boardContainer.on('wheel', function (evt) {
-      this.elements.pixelInfo.hide();
+      this.elements.pixelInfo.addClass('hide');
 
       var oldScale = this.scale;
 
@@ -307,28 +315,34 @@ window.App = {
 
           if (this.color !== null && this.cooldown <= 0) {
             // Place
-            this.elements.pixelInfo.hide();
+            this.elements.pixelInfo.addClass('hide');
             this.place(pos.x, pos.y);
           } else if (this.color === null) {
             // Get pixel info
             this.centerOn(pos.x, pos.y);
             var pixelScreenPos = this.boardToScreenSpace(pos.x, pos.y);
             var diff = 0.5 * this.scale;
-            
+
             this.elements.pixelInfo.css("transform", "translate(" + Math.floor(pixelScreenPos.x + diff) + "px, " + Math.floor(pixelScreenPos.y + diff) + "px)");
             this.elements.pixelInfo.text('Loading');
-            this.elements.pixelInfo.show();
+            this.elements.pixelInfo.removeClass('hide');
             $.get('/pixel?x=' + pos.x + '&y=' + pos.y, function (data) {
               if (data !== null) {
+                var rgb = 'rgb(' + data.colorR + ',' + data.colorG + ',' + data.colorB + ')';
+                var span = $('<span>').css('background-color', rgb);
+                span.click(function () {
+                  this.switchColor(rgb2hex(rgb));
+                }.bind(this));
                 var date = moment(data.createdAt).format('DD/MM/YYYY hh:mm:ss a');
                 this.elements.pixelInfo.text('Placed by ' + data.username + " at " + date);
+                span.prependTo(this.elements.pixelInfo);
               } else {
                 this.elements.pixelInfo.text('Nothing has been placed here!');
               }
             }.bind(this));
           }
         } else {
-          this.elements.pixelInfo.hide();
+          this.elements.pixelInfo.addClass('hide');
         }
       }
     }.bind(this);

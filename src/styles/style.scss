@@ -190,13 +190,26 @@ html, body {
     }
 
     .pixel-info {
-        display: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         position: absolute;
         will-change: transform;
         background-color: white;
         border: 1px solid #000;
         padding: 3px;
+
+        span {
+            margin-right: 3px;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+        }
     }
+}
+
+.hide {
+    display: none !important;
 }
 
 @keyframes border-pulsate {
