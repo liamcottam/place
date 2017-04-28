@@ -1,6 +1,9 @@
 const express = require('express');
 const Jimp = require('jimp');
 
+const Pixel = require('../models/Pixel');
+const Restriction = require('../models/Restriction');
+
 function Router(app) {
   let router = express.Router();
 
@@ -16,6 +19,24 @@ function Router(app) {
       height: app.config.height,
       custom_colors: app.config.allow_custom_colors,
       palette: app.config.palette,
+    });
+  });
+
+  router.get('/pixel', (req, res, next) => {
+    if (!req.query.x || !req.query.y) return res.sendStatus(400);
+
+    Pixel.findOne({ xPos: req.query.x, yPos: req.query.y }, { _id: 0, __v: 0, ip: 0 }, function (err, pixel) {
+      if (err) return res.sendStatus(500);
+
+      if (pixel) {
+        if (pixel.anon) {
+          pixel.username = 'anonymous';
+        }
+
+        Reflect.deleteProperty(pixel, 'is_anon');
+      }
+
+      res.json(pixel);
     });
   });
 
@@ -35,8 +56,8 @@ function Router(app) {
   router.get('/restricted', (req, res) => {
     if (!app.config.enable_restrictions) return res.sendStatus(405);
 
-    app.getRestrictedDb().find({}, function (err, docs) {
-      res.json(docs);
+    Restriction.find({}, { _id: 0, __v: 0 }, function (err, restrictions) {
+      res.json(restrictions);
     });
   });
 

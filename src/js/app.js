@@ -30,11 +30,11 @@ window.App = {
     reticule: $(".reticule"),
     alert: $(".message"),
     coords: $(".coords"),
+    pixelInfo: $('.pixel-info'),
 
     chatContainer: $('.chat-container'),
     usersContainer: $('.users-container'),
     loginContainer: $('.login-container'),
-    usersToggle: $('.toggle-users'),
 
     chatToggle: $('.toggle-chat'),
     usersToggle: $('.toggle-users'),
@@ -43,7 +43,7 @@ window.App = {
     loginButton: $('.login-button'),
     chatInput: $('.chat-input'),
 
-    restrictedToggle: $('.restricted-toggle'),
+    restrictedToggle: $('.restricted-toggle')
   },
   panX: 0,
   panY: 0,
@@ -70,6 +70,10 @@ window.App = {
     this.elements.usersToggle.hide();
 
     $.get("/boardinfo", this.initBoard.bind(this));
+
+    this.elements.pixelInfo.click(function () {
+      this.elements.pixelInfo.hide();
+    }.bind(this));
 
     this.initBoardMovement();
     this.initBoardPlacement();
@@ -109,18 +113,18 @@ window.App = {
   },
   drawBoard: function () {
     this.image = new Image();
+
     this.image.onload = function () {
-      $(".loading").children().first().text('Loaded!');
-      $(".loading").fadeOut(500);
+      if (this.connectionLost) this.alert(null);
       var ctx = this.elements.board[0].getContext("2d");
       ctx.drawImage(this.image, 0, 0, this.width, this.height);
     }.bind(this);
 
     this.image.onerror = function () {
-      $(".loading").fadeIn(500);
-      $(".loading").children().first().text('Failed to load image, retrying...');
+      this.alert('Refreshing board...');
       setTimeout(this.drawBoard.bind(this), 1000);
     }.bind(this);
+
     this.image.src = '/boarddata?d=' + Date.now();
   },
   initRestrictedAreas: function () {
@@ -152,10 +156,10 @@ window.App = {
 
       this.restrictedAreas.forEach(function (restrictedArea) {
         if (this.showRestrictedAreas) {
-          var scaleX = (restrictedArea.end.x - (restrictedArea.start.x - 1)) * App.scale;
-          var scaleY = (restrictedArea.end.y - (restrictedArea.start.y - 1)) * App.scale;
+          var scaleX = (restrictedArea.endX - (restrictedArea.startX - 1)) * App.scale;
+          var scaleY = (restrictedArea.endY - (restrictedArea.startY - 1)) * App.scale;
 
-          var screenPos = App.boardToScreenSpace(restrictedArea.start.x, restrictedArea.start.y);
+          var screenPos = App.boardToScreenSpace(restrictedArea.startX, restrictedArea.startY);
           restrictedArea.div.css("transform", "translate(" + screenPos.x + "px, " + screenPos.y + "px)");
           restrictedArea.div.css("width", scaleX + "px").css("height", scaleY + "px");
           restrictedArea.div.show();
@@ -207,7 +211,7 @@ window.App = {
     }.bind(this);
 
     interact(this.elements.boardContainer[0]).draggable({
-      inertia: false,
+      inertia: true,
       onmove: handleMove
     }).gesturable({
       onmove: function (evt) {
@@ -242,6 +246,9 @@ window.App = {
         } else if (evt.keyCode === 27) {
           // Clear color, escape key
           this.switchColor(null);
+          this.elements.pixelInfo.hide();
+          this.elements.reticule.hide();
+          this.elements.cursor.hide();
         }
 
         this.updateTransform();
@@ -249,6 +256,8 @@ window.App = {
     }.bind(this));
 
     this.elements.boardContainer.on('wheel', function (evt) {
+      this.elements.pixelInfo.hide();
+
       var oldScale = this.scale;
 
       if (evt.originalEvent.deltaY > 0) {
@@ -290,10 +299,37 @@ window.App = {
       var dx = Math.abs(downX - evt.clientX);
       var dy = Math.abs(downY - evt.clientY);
 
-      if (dx < 5 && dy < 5 && this.color !== null && this.cooldown <= 0 && evt.which === 1 && !clickTriggered) {
+      if (!clickTriggered) {
         clickTriggered = true;
-        var pos = this.screenToBoardSpace(evt.clientX, evt.clientY);
-        this.place(pos.x, pos.y);
+
+        if (dx < 5 && dy < 5 && evt.which === 1) {
+          var pos = this.screenToBoardSpace(evt.clientX, evt.clientY);
+
+          if (this.color !== null && this.cooldown <= 0) {
+            // Place
+            this.elements.pixelInfo.hide();
+            this.place(pos.x, pos.y);
+          } else if (this.color === null) {
+            // Get pixel info
+            this.centerOn(pos.x, pos.y);
+            var pixelScreenPos = this.boardToScreenSpace(pos.x, pos.y);
+            var diff = 0.5 * this.scale;
+            
+            this.elements.pixelInfo.css("transform", "translate(" + Math.floor(pixelScreenPos.x + diff) + "px, " + Math.floor(pixelScreenPos.y + diff) + "px)");
+            this.elements.pixelInfo.text('Loading');
+            this.elements.pixelInfo.show();
+            $.get('/pixel?x=' + pos.x + '&y=' + pos.y, function (data) {
+              if (data !== null) {
+                var date = moment(data.createdAt).format('DD/MM/YYYY hh:mm:ss a');
+                this.elements.pixelInfo.text('Placed by ' + data.username + " at " + date);
+              } else {
+                this.elements.pixelInfo.text('Nothing has been placed here!');
+              }
+            }.bind(this));
+          }
+        } else {
+          this.elements.pixelInfo.hide();
+        }
       }
     }.bind(this);
     this.elements.board.on("pointerdown", downFn).on("mousedown", downFn).on("pointerup", upFn).on("mouseup", upFn).contextmenu(function (evt) {
@@ -424,7 +460,7 @@ window.App = {
       } else pendingMessages = 0;
 
       // For regex tests
-      var m, re, index, replacementLength, newLength;
+      var m, re, index, replacementLength, newLength, i;
       var notified = false;
       var matches = [];
 
@@ -446,7 +482,7 @@ window.App = {
         }
       } while (m);
 
-      for (var i = matches.length - 1; i >= 0; i--) {
+      for (i = matches.length - 1; i >= 0; i--) {
         message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
       }
       matches = [];
@@ -463,7 +499,7 @@ window.App = {
         }
       } while (m);
 
-      for (var i = matches.length - 1; i >= 0; i--) {
+      for (i = matches.length - 1; i >= 0; i--) {
         message.html(message.html().substr(0, matches[i].index) + matches[i].div + message.html().substr(matches[i].index + matches[i].length, message.html().length));
       }
 
@@ -560,7 +596,7 @@ window.App = {
       this.username = data.username;
 
       if (data.is_moderator && !window.ModTools) {
-        $.get('js/mod_tools.js', function (data) { eval(data) });
+        $.get('js/mod_tools.js');
       }
     } else {
       if (this.username !== null) return location.reload();
@@ -687,7 +723,7 @@ window.App = {
     this.socket.emit('place', {
       x: x,
       y: y,
-      color: this.color,
+      color: this.color
     });
 
     //this.switchColor(-1);

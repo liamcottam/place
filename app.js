@@ -1,167 +1,16 @@
-const fs = require('fs');
-const crypto = require('crypto');
 const config = require('./config');
 const ImageUtils = require('./utils/ImageUtils');
 const HTTPServer = require('./utils/HTTPServer');
 const WebsocketServer = require('./utils/WebsocketServer');
 const mongoose = require('mongoose');
 
-// TODO: Move to proper database, mongodb perhaps
-const Datastore = require('nedb');
-const user_db = new Datastore({ filename: 'users.nedb', autoload: true });
-const banned_db = new Datastore({ filename: 'banned.nedb', autoload: true });
-const restricted_db = new Datastore({ filename: 'restrictions.nedb', autoload: true });
-
 var app = {};
 app.config = config;
-
-app.checkRestricted = function (x, y, callback) {
-  if (!config.enable_restrictions) return callback(false);
-
-  restricted_db.findOne({
-    $and: [
-      { 'start.x': { $lte: x } },
-      { 'start.y': { $lte: y } },
-      { 'end.x': { $gte: x } },
-      { 'end.y': { $gte: y } }
-    ]
-  }, function (err, restriction) {
-    callback(restriction !== null);
-  });
-};
-
-app.checkIntersect = function (startPosition, endPosition, callback) {
-  if (config.allow_restriction_intersect) return callback(false);
-
-  restricted_db.findOne({
-    $or: [
-      {
-        $and: [
-          { 'start.x': { $lte: startPosition.x } },
-          { 'start.y': { $lte: startPosition.y } },
-          { 'end.x': { $gte: startPosition.x } },
-          { 'end.y': { $gte: startPosition.y } }
-        ],
-      },
-      {
-        $and: [
-          { 'start.x': { $lte: endPosition.x } },
-          { 'start.y': { $lte: endPosition.y } },
-          { 'end.x': { $gte: endPosition.x } },
-          { 'end.y': { $gte: endPosition.y } }
-        ]
-      }
-    ]
-  }, function (err, restriction) {
-    callback(restriction !== null);
-  });
-};
 
 app.formatIP = function (ip) {
   ip = ip.split(',')[0];
   ip = ip.split(':').slice(-1);
-  return ip;
-};
-
-function generateSalt() {
-  return crypto.randomBytes(Math.ceil(config.salt_length / 2))
-    .toString('hex')
-    .slice(0, config.salt_length);
-};
-
-function hash(password, salt) {
-  var hash = crypto.createHmac('sha512', salt);
-  hash.update(password);
-  var value = hash.digest('hex');
-  return {
-    hash: value,
-    salt: salt,
-  };
-};
-
-function saltHash(password) {
-  var salt = generateSalt();
-  var passwordData = hash(password, salt);
-
-  return {
-    hash: passwordData.hash,
-    salt: passwordData.salt,
-  };
-};
-
-app.authenticateUser = function (username, password, callback) {
-  if (username.length === 0 || password.length === 0) {
-    callback('Username/password required', null);
-    return;
-  }
-
-  if (!username.match(/^[a-z0-9]+$/i)) {
-    callback('Invalid username', null);
-    return;
-  }
-
-  // Check if user exists
-  user_db.findOne({ username: username }, function (err, user) {
-    if (err) throw err;
-    if (user) {
-
-      if (hash(password, user.salt).hash === user.hash) {
-        return callback(null, {
-          success: true,
-          username: username,
-          is_moderator: user.is_moderator,
-        });
-      }
-
-      return callback('Username or password incorrect', null);
-    } else {
-      if (password.length < 6) return callback('Password must be at least 6 characters', null);
-
-      var data = saltHash(password);
-
-      user_db.insert({
-        username: username,
-        is_moderator: false,
-        hash: data.hash,
-        salt: data.salt,
-      });
-
-      return callback(null, {
-        success: true,
-        username: username,
-        message: 'Created new account with password provided'
-      });
-    }
-  });
-};
-
-app.banIP = function (ip) {
-  banned_db.insert({ ip: ip });
-};
-
-app.createRestriction = function (data) {
-  restricted_db.insert(data);
-};
-
-app.getRestrictedDb = function () {
-  return restricted_db;
-};
-
-app.checkBanned = function (ip, callback) {
-  banned_db.findOne({ ip: ip }, function (err, ip) {
-    if (err) throw err;
-    if (ip === null) return callback(false);
-    return callback(true);
-  });
-};
-
-app.hexToRgb = function (hex) {
-  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
+  return ip[0];
 };
 
 mongoose.Promise = global.Promise;
@@ -169,7 +18,7 @@ mongoose.connect(config.database, function (err) {
   if (err) throw err;
   app.mongooseConnection = mongoose.connection;
 
-  new ImageUtils(app);
+  app.ImageUtils = new ImageUtils(app);
   app.server = new HTTPServer(app);
   app.websocket = new WebsocketServer(app);
   app.server.http.listen(config.port, function () {

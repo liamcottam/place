@@ -12,7 +12,7 @@ window.ModTools = {
     startSelection: $('<div>', { class: 'bubble', text: 'Start Position' }),
     endSelection: $('<div>', { class: 'bubble', text: 'End Position' }),
     confirmSelection: $('<div>', { class: 'bubble', text: 'Confirm Selection' }).hide(),
-    selectionBorder: $('<div>', { class: 'selection' }),
+    selectionBorder: $('<div>', { class: 'selection' })
   },
   enableRestrictions: false,
   init: function () {
@@ -79,7 +79,6 @@ window.ModTools = {
     }).on('click', function (evt) {
       if (this.selectionModeEnabled && downX === evt.clientX && downY === evt.clientY) {
         if (this.startSelection === null && !this.manualEnd || this.manualStart) {
-
           var temp = App.screenToBoardSpace(evt.clientX, evt.clientY);
           if (this.endSelection !== null && (temp.x > this.endSelection.x || temp.y > this.endSelection.y)) {
             this.manualStart = false;
@@ -92,7 +91,6 @@ window.ModTools = {
 
           this.elements.startSelection.text('Start: (' + this.startSelection.x + ', ' + this.startSelection.y + ')');
         } else {
-
           var temp = App.screenToBoardSpace(evt.clientX, evt.clientY);
           if (temp.x < this.startSelection.x || temp.y < this.startSelection.y) {
             this.manualStart = true;
@@ -148,12 +146,12 @@ window.ModTools = {
     App.elements.board.on("mousemove", function (evt) {
       var boardPos = App.screenToBoardSpace(evt.clientX, evt.clientY);
       var diff = false;
-      if (x != boardPos.x) {
+      if (x !== boardPos.x) {
         diff = true;
         x = boardPos.x;
       }
 
-      if (y != boardPos.y) {
+      if (y !== boardPos.y) {
         diff = true;
         y = boardPos.y;
       }
@@ -164,7 +162,7 @@ window.ModTools = {
     }.bind(this));
 
     $(document).on("mousedown", function (evt) {
-      if (evt.which == 2) {
+      if (evt.which === 2) {
         this.spamBlocksEnabled = !this.spamBlocksEnabled;
         this.elements.spamEnabledDiv.text('Spam Enabled: ' + this.spamBlocksEnabled);
         if (x !== -1 && y !== -1) {
@@ -178,6 +176,7 @@ window.ModTools = {
     this.elements.restrictionDiv.click(function () {
       this.startSelectionMode(function (start, end) {
         this.restrictSelection(start, end);
+        this.reset();
       }.bind(this));
     }.bind(this));
   },
@@ -209,7 +208,6 @@ window.ModTools = {
 
     this.elements.confirmSelection.click(function () {
       callback(this.startSelection, this.endSelection);
-      this.reset();
     }.bind(this));
 
     this.selectionModeEnabled = true;
@@ -219,8 +217,6 @@ window.ModTools = {
       start: start,
       end: end
     });
-
-    this.reset();
   },
   initContextMenu: function () {
     $.contextMenu('destroy');
@@ -256,7 +252,7 @@ window.ModTools = {
             callback: function (itemKey, opt) {
               App.socket.emit('ban', opt.$trigger.text());
             }
-          },
+          }
         }
       });
     });

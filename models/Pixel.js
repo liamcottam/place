@@ -90,14 +90,17 @@ PixelSchema.statics.addPixel = function (data, callback) {
       upsert: true
     }, function (err, pixel) {
       if (err) return callback(err);
-      callback();
 
       // Archive the previous pixel if there was one before it
       if (pixel) {
-        new PixelArchive(pixel.toObject()).save(function (err) {
+        pixel = pixel.toObject();
+        Reflect.deleteProperty(pixel, '_id');
+        new PixelArchive(pixel).save(function (err) {
           if (err) console.error(err);
         });
       }
+
+      callback();
     });
 };
 

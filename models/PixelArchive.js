@@ -37,7 +37,7 @@ var PixelSchema = new Schema({
   anon: {
     type: Boolean,
     required: false
-  },
+  }
 });
 
 module.exports = mongoose.model('ArchivedPixel', PixelSchema);

@@ -4,6 +4,8 @@ $sidebarWidth: 300px + ($sidebarHeaderPadding * 3);
 $bubbleBgColor: rgba(0, 0, 0, 0.6);
 $messageBgColor: rgba(0, 0, 0, 0.8);
 
+@import 'sidebar';
+
 * {
     box-sizing: border-box;
 }
@@ -18,6 +20,26 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #444;
+    z-index: 99999;
+
+    span {
+        text-align: center;
+        font-size: 36px;
+        color: white;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+}
+
 .board-container {
     position: absolute;
     top: 0;
@@ -28,153 +50,152 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-}
 
-.board-zoomer {
-    flex: 0 0 100px;
-}
+    .board-zoomer {
+        flex: 0 0 100px;
+    }
 
-.board-mover {
-    background-color: #fff;
-}
+    .board-mover {
+        background-color: #fff;
+    }
 
-.board {
-    display: block;
-}
+    .board {
+        display: block;
+    }
 
-#board {
-    image-rendering: -moz-crisp-edges;
-    image-rendering: -o-pixelated;
-    image-rendering: pixelated;
-}
-
-.reticule {
-    position: absolute;
-    top: 0;
-    left: 0;
-
-    z-index: 1;
-    border: 1px solid black;
-    pointer-events: none;
-    will-change: transform;
-}
-
-.cursor {
-    position: absolute;
-    width: 36px;
-    height: 36px;
-    border: 1px solid black;
-
-    pointer-events: none;
-    will-change: transform;
-    z-index: 5;
-}
-
-.loading {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: #444;
-    z-index: 99999;
-}
-
-.loading span {
-    text-align: center;
-    font-size: 36px;
-    color: white;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    #board {
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -o-pixelated;
+        image-rendering: pixelated;
+    }
 }
 
 .ui {
     z-index: 999;
-}
 
-.cooldown-timer {
-    position: fixed;
-    top: 40px;
-    left: 50%;
-    transform: translateX(-50%);
+    .reticule {
+        position: absolute;
+        top: 0;
+        left: 0;
 
-    padding: 16px;
-    background-color: $bubbleBgColor;
-    color: white;
-    font-size: 24px;
+        z-index: 1;
+        border: 1px solid black;
+        pointer-events: none;
+        will-change: transform;
+    }
 
-    pointer-events: none;
-    user-select: none;
-    z-index: 999;
-}
+    .cursor {
+        position: absolute;
+        width: 36px;
+        height: 36px;
+        border: 1px solid black;
 
-.palette {
-    position: absolute;
-    bottom: 16px;
-    width: 100%;
-    padding: 0 16px;
-    overflow-x: auto;
-    text-align: center;
-    white-space: nowrap;
-}
+        pointer-events: none;
+        will-change: transform;
+        z-index: 5;
+    }
 
-.palette-color {
-    display: inline-block;
-    min-height: 32px;
-    min-width: 32px;
-    border: 1px solid black;
-    margin-right: 8px;
-    cursor: pointer;
-}
+    .cooldown-timer {
+        position: fixed;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
 
-.message {
-    padding: 16px;
-    background-color: $messageBgColor;
-    color: white;
-    width: 50%;
-    text-align: center;
-    z-index: 999;
-
-    position: fixed;
-    bottom: 120px;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-.message .close {
-    cursor: pointer;
-    float: right;
-}
-
-.coords {
-    margin: $uiPadding;
-    position: fixed;
-    bottom: 0;
-    padding: 8px;
-    background-color: $bubbleBgColor;
-    color: #fff;
-}
-
-.bubble-container {
-    position: fixed;
-
-    .bubble {
-        margin: $uiPadding;
-        padding: $uiPadding $uiPadding;
-        width: 128px;
+        padding: 16px;
         background-color: $bubbleBgColor;
-        color: #fff;
+        color: white;
+        font-size: 24px;
+
+        pointer-events: none;
+        user-select: none;
+        z-index: 999;
+    }
+
+    .palette {
+        position: absolute;
+        bottom: 16px;
+        width: 100%;
+        padding: 0 16px;
+        overflow-x: auto;
         text-align: center;
+        white-space: nowrap;
+    }
+
+    .palette-color {
+        display: inline-block;
+        min-height: 32px;
+        min-width: 32px;
+        border: 1px solid black;
+        margin-right: 8px;
         cursor: pointer;
     }
-}
 
-.bubble {
-    a:visited, a:link, a:hover {
-        text-decoration: none;
+    .selection {
+        position: absolute;
+        top: 0;
+        left: 0;
+
+        z-index: 1;
+        border: 1px solid green;
+        pointer-events: none;
+        will-change: transform;
+        animation: border-pulsate 2s infinite;
+    }
+
+    .message {
+        padding: 16px;
+        background-color: $messageBgColor;
+        color: white;
+        width: 50%;
+        text-align: center;
+        z-index: 999;
+
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+
+        .close {
+            cursor: pointer;
+            float: right;
+        }
+    }
+
+    .coords {
+        margin: $uiPadding;
+        position: fixed;
+        bottom: 0;
+        padding: 8px;
+        background-color: $bubbleBgColor;
         color: #fff;
+    }
+
+    .bubble-container {
+        position: fixed;
+
+        .bubble {
+            margin: $uiPadding;
+            padding: $uiPadding $uiPadding;
+            width: 128px;
+            background-color: $bubbleBgColor;
+            color: #fff;
+            text-align: center;
+            cursor: pointer;
+
+            a:visited, a:link, a:hover {
+                text-decoration: none;
+                color: #fff;
+            }
+        }
+    }
+
+    .pixel-info {
+        display: none;
+        position: absolute;
+        will-change: transform;
+        background-color: white;
+        border: 1px solid #000;
+        padding: 3px;
     }
 }
 
@@ -182,18 +203,6 @@ html, body {
     0%   { border-color: rgba(0, 0, 0, 1); }
     50%   { border-color: rgba(255, 255, 0, 0.5); }
     100%   { border-color: rgba(0, 0, 0, 1); }
-}
-
-.selection {
-    position: absolute;
-    top: 0;
-    left: 0;
-
-    z-index: 1;
-    border: 1px solid green;
-    pointer-events: none;
-    will-change: transform;
-    animation: border-pulsate 2s infinite;
 }
 
 .sp-replacer {
@@ -215,4 +224,3 @@ html, body {
     }
 }
 
-@import 'sidebar';

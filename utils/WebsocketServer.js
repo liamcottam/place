@@ -2,7 +2,19 @@ const socketio = require('socket.io');
 const Jimp = require('jimp');
 const sharedsession = require("express-socket.io-session");
 
+const Ban = require('../models/Ban');
+const User = require('../models/User');
 const Pixel = require('../models/Pixel');
+const Restriction = require('../models/Restriction');
+
+function hexToRgb(hex) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
 
 function WebsocketServer(app) {
   const io = socketio(app.server.http);
@@ -67,16 +79,17 @@ function WebsocketServer(app) {
     connected_clients++;
     var ip = app.formatIP(socket.handshake.headers["x-real-ip"] || socket.request.connection.remoteAddress);
     ipClients[ip] = (ipClients[ip]) ? ipClients[ip] : defaultIpSession;
-    console.log('WS-CONNECTION: %s', ip);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('WS-CONNECTION: %s', ip);
+    }
 
     var id = Math.random().toString(36).substr(2, 5);
     clients[id] = { ready: false };
 
-    app.checkBanned(ip, function (isBanned) {
-      if (isBanned) {
+    Ban.checkBanned(ip, function (banned) {
+      if (banned) {
         console.log('BANNED USER ATTEMPTED CONNECTION: %s', ip);
         socket.emit('alert', 'You are banned.');
-
         clients[id] = { banned: true, ready: true };
       } else {
         clients[id] = {
@@ -86,7 +99,8 @@ function WebsocketServer(app) {
           ready: true
         };
 
-        if (userBroadcast === null) userBroadcast = userBroadcastFn();
+        // Generate a user broadcast if it was empty before-hand.
+        if (userBroadcast === null || userBroadcast.connected === 0) userBroadcast = userBroadcastFn();
 
         var sessionData = { users: userBroadcast };
         if (socket.handshake.session.userdata) {
@@ -96,7 +110,7 @@ function WebsocketServer(app) {
           clients[id].is_moderator = sessionData.userdata.is_moderator;
         }
 
-        if (!sessionData.userdata || clients[id].is_moderator) {
+        if (!sessionData.userdata || !clients[id].is_moderator) {
           var diff = ipClients[ip].cooldown - Date.now();
           if (diff > 0) sessionData.cooldown = diff / 1000;
         }
@@ -144,7 +158,7 @@ function WebsocketServer(app) {
       if (typeof ipClients[ip].cooldown === 'undefined' || ipClients[ip].cooldown - now > 0 && !clients[id].is_moderator) return;
 
       // Sent garbage data, ignore
-      let rgb = app.hexToRgb(data.color);
+      let rgb = hexToRgb(data.color);
       if (rgb === null) return;
 
       // Prevent placing colors that are not in the palette if allow_custom_colors is not enabled.
@@ -154,7 +168,7 @@ function WebsocketServer(app) {
       let jrgb = Jimp.rgbaToInt(rgb.r, rgb.g, rgb.b, 255);
       if (app.image.getPixelColor(x, y) === jrgb) return;
 
-      // TODO: Fix code duplication, move restrictions to db
+      // TODO: Fix code duplication
       if (clients[id].is_moderator) {
         Pixel.addPixel({
           x: x, y: y,
@@ -168,10 +182,13 @@ function WebsocketServer(app) {
           app.image.setPixelColor(jrgb, x, y);
         });
       } else {
-        app.checkRestricted(x, y, function (restricted) {
-          if (!restricted) {
+        Restriction.checkRestricted(x, y, function (err, restricted) {
+          if (err) return console.error(err);
+
+          if (restricted === false) {
             Pixel.addPixel({
-              x: x, y: y,
+              x: x,
+              y: y,
               color: rgb,
               ip: ip,
               username: username,
@@ -217,23 +234,31 @@ function WebsocketServer(app) {
     });
 
     socket.on('auth', function (data) {
-      app.authenticateUser(data.username, data.password, function (err, response) {
-        if (!err) {
-          console.log('AUTH-SUCCESS: %s (%s) - %s', ip, id, data.username);
-          clients[id].username = data.username;
-          clients[id].is_moderator = response.is_moderator;
-          if (response.is_moderator) socket.emit('cooldown', 0);
-          socket.emit('auth', response);
-
-          socket.handshake.session.userdata = {
-            username: data.username,
-            is_moderator: response.is_moderator
-          };
-          socket.handshake.session.save();
-        } else {
+      User.authenticate({
+        username: data.username,
+        password: data.password
+      }, function (err, user) {
+        if (err) {
           console.log('AUTH-FAIL: %s (%s) - %s - ', ip, id, data.username, err);
-          socket.emit('auth', { success: false, message: err });
+          return socket.emit('auth', { success: false, message: err });
         }
+
+        console.log('AUTH-SUCCESS: %s (%s) - %s', ip, id, data.username);
+        clients[id].username = user.username;
+        clients[id].is_moderator = user.is_moderator;
+        if (user.is_moderator) socket.emit('cooldown', 0);
+
+        socket.emit('auth', {
+          success: true,
+          username: user.username,
+          is_moderator: user.is_moderator
+        });
+
+        socket.handshake.session.userdata = {
+          username: user.username,
+          is_moderator: user.is_moderator
+        };
+        socket.handshake.session.save();
       });
     });
 
@@ -246,7 +271,6 @@ function WebsocketServer(app) {
     var findUser = function (needle) {
       if (typeof clients[needle] !== 'undefined' && typeof clients[needle].ws !== 'undefined') {
         return needle;
-        session_id = needle;
       } else {
         for (key in clients) {
           if (clients[key].username === needle) {
@@ -274,15 +298,19 @@ function WebsocketServer(app) {
       var client_id = findUser(session_id);
 
       if (client_id && !clients[client_id].is_moderator) {
-        clients[client_id].ws.emit('alert', 'You have been banned.');
-        app.banIP(clients[session_id].ip);
-        delete clients[client_id];
-        clients[client_id] = { banned: true };
-        socket.emit('alert', 'Ban for ' + session_id + ' succeeded');
+        Ban.addBan(clients[session_id].ip, function (err) {
+          if (err) {
+            console.error(err);
+            return socket.emit('alert', 'Ban for ' + session_id + ' failed');
+          }
+
+          delete clients[client_id];
+          clients[client_id] = { banned: true, ready: true };
+          socket.emit('alert', 'Ban for ' + session_id + ' succeeded');
+        });
       } else {
         socket.emit('alert', 'Ban for ' + session_id + ' failed');
       }
-
     });
 
     socket.on('restriction', function (data) {
@@ -293,12 +321,19 @@ function WebsocketServer(app) {
         return;
       }
 
-      app.checkIntersect(data.start, data.end, function (intersects) {
-        if (!intersects) {
-          app.createRestriction(data);
-          socket.emit('alert', 'Restriction created');
+      Restriction.checkIntersects(data.start, data.end, function (intersects) {
+        if (intersects) {
+          socket.emit('alert', 'Restriction intersects an existing restriction.');
         } else {
-          socket.emit('alert', 'Restriction intersects already created restriction.');
+          Restriction.addRestriction(clients[id].username, data.start, data.end, function (err) {
+            if (err) {
+              console.error(err);
+              socket.emit('alert', 'Failed to create restriction');
+              return;
+            }
+
+            socket.emit('alert', 'Restriction created');
+          });
         }
       });
     });

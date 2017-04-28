@@ -10,10 +10,7 @@
         "backups",
         "node_modules",
         "public",
-        "src",
-        "users.nedb",
-        "banned.nedb",
-        "restrictions.nedb"
+        "src"
       ],
       "env": {
         "NODE_ENV": "production"
