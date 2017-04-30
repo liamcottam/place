@@ -219,7 +219,7 @@ window.App = {
     }.bind(this);
 
     interact(this.elements.boardContainer[0]).draggable({
-      inertia: true,
+      inertia: false,
       onmove: handleMove
     }).gesturable({
       onmove: function (evt) {
@@ -318,6 +318,8 @@ window.App = {
             this.elements.pixelInfo.addClass('hide');
             this.place(pos.x, pos.y);
           } else if (this.color === null) {
+            if (window.ModTools && window.ModTools.selectionModeEnabled) return;
+
             // Get pixel info
             this.centerOn(pos.x, pos.y);
             var pixelScreenPos = this.boardToScreenSpace(pos.x, pos.y);
