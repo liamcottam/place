@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Place Reloaded</title>
+    <link rel="stylesheet" href="https://bgrins.github.io/spectrum/spectrum.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.4/jquery.contextMenu.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.4/jquery.contextMenu.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.2.8/interact.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+    <script src="https://bgrins.github.io/spectrum/spectrum.js"></script>
+  </head>
+  <body>
+    <div class="loading">
+      <span>Loading...</span>
+    </div>
+    <div class="board-container">
+      <div class="board-zoomer">
+        <div class="board-mover">
+          <canvas id="board" width="100" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="ui" id="ui">
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <a class="toggle-users"> </a>
+          <a class="toggle-login">Login</a>
+          <a class="toggle-chat">Chat</a>
+        </div>
+        <div class="container chat-container">
+          <div class="chat-log"></div>
+          <div class="chat-input-container">
+            <textarea class="chat-input" type="text" placeholder="Send a message" maxlength="250"></textarea>
+          </div>
+        </div>
+        <div class="container login-container">
+          <div class="login-form">
+            <form>
+              <input type="text" id="username">
+              <input type="password" id="password">
+              <input class="login-button" type="submit" value="Login">
+            </form>
+          </div>
+        </div>
+        <div class="container users-container">
+          <div class="user-list">
+            <div class="user-list-section">
+              <div class="user-list-section-header">Moderators</div>
+              <div class="moderators"></div>
+            </div>
+            <div class="user-list-section">
+              <div class="user-list-section-header">Registered Users</div>
+              <div class="registered"></div>
+            </div>
+            <div class="user-list-section">
+              <div class="user-list-section-header">Anons</div>
+              <div class="anons"></div>
+            </div>
+          </div>
+          <div class="move-ticker">
+            <div class="move-ticker-header">Ticker</div>
+            <div class="move-ticker-body"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cooldown-timer"></div>
+      <div class="message">
+        <span class="text"></span>
+        <span class="close">x</span>
+      </div>
+      <div class="bubble-container">
+        <div class="bubble">
+          <a href="https://discord.gg/t6mHzMZ" target="_blank">Discord</a>
+        </div>
+        <div class="bubble">
+          <a href="https://www.reddit.com/r/PlaceReloaded/" target="_blank">Subreddit</a>
+        </div>
+        <div class="bubble">
+          <a href="#" id="download" onclick="App.toURL">Screenshot</a>
+        </div>
+      </div>
+      <div class="reticule" id="reticule"></div>
+      <div class="palette"></div>
+      <div class="coords">(0, 0)</div>
+      <div class="cursor" id="cursor"></div>
+      <div class="pixel-info hide"></div>
+    </div>
+  </body>
+</html>
