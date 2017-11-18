@@ -33,6 +33,7 @@ func (service *Service) ServeWebsocket(hub *Hub, w http.ResponseWriter, r *http.
 	}
 	userID := RandString(5)
 	log.Printf("Assigned connecting user id: %s", userID)
+	log.Printf("Total connected clients: %d", len(hub.clients))
 	client := &Client{
 		Service: service,
 		ID:      userID,
