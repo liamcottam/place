@@ -6,7 +6,7 @@ import (
 	"image/color"
 	"log"
 
-	"gopkg.in/go-playground/colors.v1"
+	"github.com/go-playground/colors"
 )
 
 //["place", {x: 0, y: 0, color: "#6DAA2C"}]

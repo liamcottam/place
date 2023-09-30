@@ -3,7 +3,7 @@ package cli
 import (
 	place "github.com/liamcottam/place/server"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin/v2"
 )
 
 // Service implements the CLIService interface
