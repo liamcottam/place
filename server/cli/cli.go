@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"place/server"
+	place "github.com/liamcottam/place/server"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )

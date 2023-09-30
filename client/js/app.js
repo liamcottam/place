@@ -1,7 +1,6 @@
 import '../scss/style.scss';
 
 import websocket from './websocket';
-import { debug } from 'util';
 
 function getQueryVariable(variable) {
   const query = window.location.search.substring(1);

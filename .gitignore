@@ -6,3 +6,4 @@ ecosystem.json
 users.nedb
 banned.nedb
 restrictions.nedb
+dist/

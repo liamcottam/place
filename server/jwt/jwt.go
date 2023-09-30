@@ -2,8 +2,9 @@ package jwt
 
 import (
 	"fmt"
-	place "place/server"
 	"time"
+
+	place "github.com/liamcottam/place/server"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/securecookie"

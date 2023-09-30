@@ -2,7 +2,8 @@ package database
 
 import (
 	"log"
-	"place/server"
+
+	place "github.com/liamcottam/place/server"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"

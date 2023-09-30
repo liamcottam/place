@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"image/png"
 	"net/http"
-	"place/server/database"
-	"place/server/websocket"
+
+	"github.com/liamcottam/place/server/database"
+	"github.com/liamcottam/place/server/websocket"
 )
 
 // Server implements the portainer.Server interface

@@ -3,13 +3,14 @@ package main
 import (
 	"log"
 	"math/rand"
-	"place/server"
-	"place/server/cli"
-	"place/server/database"
-	"place/server/http"
-	"place/server/jwt"
-	"place/server/websocket"
 	"time"
+
+	place "github.com/liamcottam/place/server"
+	"github.com/liamcottam/place/server/cli"
+	"github.com/liamcottam/place/server/database"
+	"github.com/liamcottam/place/server/http"
+	"github.com/liamcottam/place/server/jwt"
+	"github.com/liamcottam/place/server/websocket"
 )
 
 func initCLI() *place.CLIFlags {

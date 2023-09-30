@@ -4,7 +4,8 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"place/server/database"
+
+	"github.com/liamcottam/place/server/database"
 )
 
 var (
